@@ -1,17 +1,15 @@
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
 
-def train_model(data):
-    X = data[['Open', 'High', 'Low', 'Volume']]
-    y = data['Close']
+def train_model(X_train, y_train):
+    model = Sequential()
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    model.add(LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], X_train.shape[2])))
+    model.add(LSTM(50))
+    model.add(Dense(1))
 
-    model = LinearRegression()
-    model.fit(X_train, y_train)
+    model.compile(optimizer='adam', loss='mean_squared_error')
 
-    print("Model trained")
+    model.fit(X_train, y_train, epochs=10, batch_size=32, verbose=1)
 
-    return model, X_test, y_test
+    return model
