@@ -8,50 +8,61 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Load data
+# LOAD DATA ONCE
 data = pd.read_csv("data.csv")
 
-# preprocess
 X, y, scaler = preprocess_data(data)
 
-# split (important for evaluation)
 split = int(len(X) * 0.8)
 X_train, X_test = X[:split], X[split:]
 y_train, y_test = y[:split], y[split:]
 
-# load model
 model = load_model("model.h5")
 print("Model loaded ✅")
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    predictions = None
+
+    predictions = []
     mae = None
     rmse = None
+    error_message = None
+    days = 0
 
     if request.method == "POST":
+
         days = int(request.form["days"])
 
-        # future prediction
-        predictions = predict_future(model, X, scaler, days)
+        # ✅ VALIDATION (IMPORTANT FIX)
+        if days < 1:
+            error_message = "Days must be at least 1"
+        elif days > 30:
+            error_message = "Maximum allowed days is 30"
+            days = 30
 
-        # 🔥 evaluate model on test data
-        y_pred = model.predict(X_test)
+        if not error_message:
 
-        # inverse transform (VERY IMPORTANT)
-        y_test_inv = scaler.inverse_transform(y_test.reshape(-1, 1))
-        y_pred_inv = scaler.inverse_transform(y_pred)
+            # prediction
+            predictions = predict_future(model, X, scaler, days)
+            predictions = [float(p) for p in predictions]
 
-        # metrics
-        mae = mean_absolute_error(y_test_inv, y_pred_inv)
-        rmse = np.sqrt(mean_squared_error(y_test_inv, y_pred_inv))
+            # evaluation
+            y_pred = model.predict(X_test)
+
+            y_test_inv = scaler.inverse_transform(y_test)
+            y_pred_inv = scaler.inverse_transform(y_pred)
+
+            mae = mean_absolute_error(y_test_inv, y_pred_inv)
+            rmse = np.sqrt(mean_squared_error(y_test_inv, y_pred_inv))
 
     return render_template(
         "index.html",
         predictions=predictions,
         mae=mae,
-        rmse=rmse
+        rmse=rmse,
+        days=days,
+        error=error_message
     )
 
 

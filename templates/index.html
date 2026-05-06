@@ -5,38 +5,44 @@
 </head>
 <body>
 
-<h1>📊 Stock Price Prediction System</h1>
+<h2>📊 Stock Price Prediction System</h2>
 
 <form method="POST">
-    <label>Enter number of days:</label>
-    <input type="number" name="days" min="1" required>
+    <input type="number" name="days" placeholder="Enter number of days" required>
     <button type="submit">Predict</button>
 </form>
 
-<hr>
-
-<!-- 📊 PREDICTIONS -->
-{% if predictions is not none %}
-    <h2>Predictions</h2>
-    <ul>
-        {% for p in predictions %}
-            <li>Day {{ loop.index }} → {{ p[0] }}</li>
-        {% endfor %}
-    </ul>
+<!-- ERROR MESSAGE -->
+{% if error %}
+    <p style="color:red;">{{ error }}</p>
 {% endif %}
 
-<hr>
+<!-- PREDICTIONS -->
+{% if predictions %}
+<h3>Predictions</h3>
 
-<!-- 📏 MAE -->
-{% if mae is not none %}
-    <h2>📏 MAE (Mean Absolute Error)</h2>
-    <p>{{ mae }}</p>
+<table border="1">
+    <tr>
+        <th>Day</th>
+        <th>Predicted Price</th>
+    </tr>
+
+    {% for p in predictions %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ p }}</td>
+    </tr>
+    {% endfor %}
+</table>
 {% endif %}
 
-<!-- 📉 RMSE -->
-{% if rmse is not none %}
-    <h2>📉 RMSE (Root Mean Squared Error)</h2>
-    <p>{{ rmse }}</p>
+<!-- METRICS -->
+{% if mae %}
+<h3>📏 MAE</h3>
+<p>{{ mae }}</p>
+
+<h3>📉 RMSE</h3>
+<p>{{ rmse }}</p>
 {% endif %}
 
 </body>
