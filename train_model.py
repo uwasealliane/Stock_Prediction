@@ -1,21 +1,28 @@
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
+from preprocess import preprocess_data
+import pandas as pd
 
-def train_model(X_train, y_train):
+# Load data
+data = pd.read_csv("data.csv")
 
-    model = Sequential()
+# Preprocess
+X, y, scaler = preprocess_data(data)
 
-    model.add(LSTM(64, return_sequences=True, input_shape=(60, 1)))
-    model.add(LSTM(64))
-    model.add(Dense(25, activation='relu'))
-    model.add(Dense(1))
+# Build model
+model = Sequential()
 
-    model.compile(optimizer='adam', loss='mean_squared_error')
+model.add(LSTM(50, return_sequences=True, input_shape=(X.shape[1], X.shape[2])))
+model.add(LSTM(50))
+model.add(Dense(1))
 
-    model.fit(X_train, y_train, epochs=10, batch_size=32)
+# Compile
+model.compile(optimizer='adam', loss='mean_squared_error')
 
-    model.save("model.h5")
+# Train
+model.fit(X, y, epochs=5, batch_size=32)
 
-    print("Model saved ✅")
+# Save
+model.save("model.h5")
 
-    return model
+print("Model trained and saved successfully ✅")

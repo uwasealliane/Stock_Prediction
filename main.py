@@ -1,23 +1,28 @@
 from load_data import load_data
 from preprocess import preprocess_data
 from train_model import train_model
-from predict import make_predictions
 
-# Step 1: Load
+# =========================
+# LOAD DATA
+# =========================
 data = load_data()
 
-# Step 2: Preprocess
+# =========================
+# PREPROCESS
+# =========================
 X, y, scaler = preprocess_data(data)
 
-# Step 3: Split
+# =========================
+# SPLIT DATA
+# =========================
 split = int(0.8 * len(X))
-X_train, X_test = X[:split], X[split:]
-y_train, y_test = y[:split], y[split:]
 
-# Step 4: Train
+X_train = X[:split]
+y_train = y[:split]
+
+# =========================
+# TRAIN MODEL
+# =========================
 model = train_model(X_train, y_train)
 
-# Step 5: Predict
-predictions = make_predictions(model, X_test, scaler)
-
-print(predictions[:5])
+print("Training completed ✅")

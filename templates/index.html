@@ -1,49 +1,527 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Stock Prediction</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAPL Stock Price Prediction System</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #0f172a, #1e3a8a, #0f172a);
+            padding: 40px;
+        }
+
+        /* GLASSMORPHISM CONTAINER */
+        .glass-container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+        }
+
+        /* TITLE */
+        .title {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        /* TWO COLUMN LAYOUT */
+        .two-columns {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        /* LEFT COLUMN */
+        .info-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .info-card h2 {
+            color: white;
+            font-size: 22px;
+            margin-bottom: 20px;
+            border-left: 4px solid #38bdf8;
+            padding-left: 12px;
+        }
+
+        .info-card h3 {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #e2e8f0;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .input-group select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .input-group select:focus {
+            border-color: #38bdf8;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .input-group select option {
+            background: #1e1e2f;
+            color: white;
+        }
+
+        .date-info {
+            background: rgba(56, 189, 248, 0.15);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .date-info small {
+            color: #94a3b8;
+            font-size: 11px;
+        }
+
+        /* PREDICT BUTTON */
+        .predict-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #2563eb, #38bdf8);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .predict-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
+        }
+
+        /* RIGHT COLUMN */
+        .result-card {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .result-card h2 {
+            color: white;
+            font-size: 22px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4ade80;
+            padding-left: 12px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .result-label {
+            color: #cbd5e1;
+            font-size: 14px;
+        }
+
+        .result-value {
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .predicted-price {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4ade80;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .trend-up {
+            color: #4ade80;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .trend-down {
+            color: #f87171;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .error-text {
+            color: #f87171;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* CHART SECTION */
+        .chart-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            margin-top: 20px;
+        }
+
+        .chart-card h2 {
+            color: white;
+            font-size: 22px;
+            margin-bottom: 20px;
+            border-left: 4px solid #f59e0b;
+            padding-left: 12px;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 350px;
+            position: relative;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 350px !important;
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #cbd5e1;
+            font-size: 13px;
+        }
+
+        .legend-color.actual {
+            width: 30px;
+            height: 3px;
+            background: #3b82f6;
+        }
+
+        .legend-color.predicted {
+            width: 30px;
+            height: 3px;
+            background: #f59e0b;
+            border-top: 3px dashed #f59e0b;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #cbd5e1;
+            padding: 50px;
+        }
+
+        /* Responsive */
+        @media (max-width: 800px) {
+            .two-columns {
+                flex-direction: column;
+            }
+            .glass-container {
+                padding: 20px;
+            }
+        }
+    </style>
 </head>
 <body>
 
-<h2>📊 Stock Price Prediction System</h2>
+<div class="glass-container">
+    
+    <!-- TITLE -->
+    <div class="title">
+        📈 AAPL Stock Price Prediction System
+    </div>
+    <div class="subtitle">
+        Apple Inc. (AAPL) | Data: 1980 - 2020
+    </div>
 
-<form method="POST">
-    <input type="number" name="days" placeholder="Enter number of days" required>
-    <button type="submit">Predict</button>
-</form>
+    <!-- TWO COLUMN LAYOUT -->
+    <div class="two-columns">
 
-<!-- ERROR MESSAGE -->
-{% if error %}
-    <p style="color:red;">{{ error }}</p>
-{% endif %}
+        <!-- LEFT COLUMN: Stock Information -->
+        <div class="info-card">
+            <h2>Enter Stock Information</h2>
+            <h3>📊 AAPL (Apple Inc.) - Only Stock Available</h3>
 
-<!-- PREDICTIONS -->
-{% if predictions %}
-<h3>Predictions</h3>
+            <form method="POST" id="predictionForm">
+           <div class="input-group">
+    <label>Select Date (Historical Data Point)</label>
 
-<table border="1">
-    <tr>
-        <th>Day</th>
-        <th>Predicted Price</th>
-    </tr>
+    <input
+        type="date"
+        name="date"
+        min="{{ min_date }}"
+        max="{{ max_date }}"
+        value="{{ selected_date }}"
+        required
+        class="date-picker"
+    >
+</div>
 
-    {% for p in predictions %}
-    <tr>
-        <td>{{ loop.index }}</td>
-        <td>{{ p }}</td>
-    </tr>
-    {% endfor %}
-</table>
-{% endif %}
+                <div class="date-info">
+                    <small>📅 Data available from {{ min_date }} to {{ max_date }}</small>
+                </div>
 
-<!-- METRICS -->
-{% if mae %}
-<h3>📏 MAE</h3>
-<p>{{ mae }}</p>
+                <button type="submit" class="predict-btn">🔮 Get Prediction</button>
+            </form>
+        </div>
 
-<h3>📉 RMSE</h3>
-<p>{{ rmse }}</p>
-{% endif %}
+        <!-- RIGHT COLUMN: Prediction Result -->
+        <div class="result-card">
+            <h2>Prediction Result</h2>
+
+            {% if error %}
+                <div class="error-text">{{ error }}</div>
+
+            {% elif predictions is not none and predictions|length > 0 %}
+                
+                <div class="result-row">
+                    <span class="result-label">Based on Date:</span>
+                    <span class="result-value">{{ selected_date }}</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Next Trading Day Prediction:</span>
+                    <span class="result-value">{{ next_date if next_date else "Next day" }}</span>
+                </div>
+
+                <div class="predicted-price">
+                    ${{ "%.2f"|format(predictions[-1]) }}
+                </div>
+
+                <div class="trend-{% if trend == 'UP' %}up{% else %}down{% endif %}">
+                    📊 Trend: {{ trend }} 
+                    {% if trend == 'UP' %}📈{% else %}📉{% endif %}
+                    (Next 30 days)
+                </div>
+
+                <div class="result-row" style="margin-top: 15px;">
+                    <span class="result-label">Model MAE (Mean Absolute Error):</span>
+                    <span class="result-value">${{ "%.2f"|format(mae) if mae else '—' }}</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Model RMSE (Root Mean Square Error):</span>
+                    <span class="result-value">${{ "%.2f"|format(rmse) if rmse else '—' }}</span>
+                </div>
+
+                <div class="result-row">
+                    <span class="result-label">Model Accuracy (1 - MAE/Price):</span>
+                    <span class="result-value">
+                        {% if mae and predictions %}
+                            {{ "%.1f"|format((1 - mae/predictions[-1]) * 100) }}%
+                        {% else %}
+                            —
+                        {% endif %}
+                    </span>
+                </div>
+
+            {% else %}
+                <div class="no-data" style="padding: 30px 0;">
+                    No prediction yet<br>
+                    Select a date and click "Get Prediction"
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- CHART SECTION -->
+    <div class="chart-card">
+        <h2>📊 Price Trend Chart</h2>
+
+        {% if predictions is not none and predictions|length > 0 and historical_prices is not none %}
+            <div class="chart-container">
+                <canvas id="priceChart"></canvas>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <div class="legend-color actual"></div>
+                    <span>Actual Price (Blue Line)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color predicted"></div>
+                    <span>Predicted Price (Orange Dashed Line) - Next 30 Days</span>
+                </div>
+            </div>
+        {% else %}
+            <div class="no-data">
+                Chart will appear after prediction
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    {% if predictions is not none and predictions|length > 0 and historical_prices is not none %}
+    
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    
+    const historicalData = {{ historical_prices | tojson }};
+    const predictionData = {{ predictions | tojson }};
+    const historicalLabels = {{ historical_dates | tojson }};
+    const predictionLabels = {{ prediction_dates | tojson }};
+    
+    // Create labels for combined chart
+    const allLabels = [...historicalLabels, ...predictionLabels];
+    
+    // Create data arrays (with null gaps)
+    const actualData = [...historicalData, ...Array(predictionData.length).fill(null)];
+    const predictedData = [...Array(historicalData.length).fill(null), ...predictionData];
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: allLabels,
+            datasets: [
+                {
+                    label: 'Actual Price (Historical)',
+                    data: actualData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    pointRadius: 2,
+                    pointBackgroundColor: '#3b82f6',
+                    tension: 0.1,
+                    fill: false
+                },
+                {
+                    label: 'Predicted Price (Forecast)',
+                    data: predictedData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [8, 6],
+                    pointRadius: 3,
+                    pointBackgroundColor: '#f59e0b',
+                    tension: 0.1,
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: 'white',
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Time Period',
+                        color: '#cbd5e1',
+                        font: { size: 12 }
+                    },
+                    ticks: {
+                        color: '#cbd5e1',
+                        maxRotation: 45,
+                        minRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 10
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Price (USD)',
+                        color: '#cbd5e1',
+                        font: { size: 12 }
+                    },
+                    ticks: {
+                        color: '#cbd5e1'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)'
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+</script>
 
 </body>
 </html>
