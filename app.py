@@ -149,7 +149,13 @@ def index():
                     # =========================
                     # TREND
                     # =========================
-                    trend = "UP 📈"
+                    # Calculate trend
+                    last_real_price = sequence_data['Close'].iloc[-1]
+
+                    if predictions[0] > last_real_price:
+                     trend = "UP"
+                    else:
+                      trend = "DOWN"
 
                     # =========================
                     # HISTORICAL CHART DATA
