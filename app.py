@@ -6,11 +6,14 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+
 # =========================
 # CREATE FLASK APP
 # =========================
 app = Flask(__name__)
 
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
 # =========================
 # LOAD AAPL DATA
 # =========================
