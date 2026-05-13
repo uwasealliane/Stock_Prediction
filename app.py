@@ -12,8 +12,16 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 # =========================
 app = Flask(__name__)
 
+import os
+
+# At the bottom, replace:
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
+
+# With this:
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
 # =========================
 # LOAD AAPL DATA
 # =========================
