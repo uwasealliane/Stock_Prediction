@@ -50,7 +50,7 @@
             align-items: center;
             margin-bottom: 28px;
             flex-wrap: wrap;
-            background: rgba(10, 16, 28, 0.65);
+           background: rgba(10, 16, 28, 0.65);
             backdrop-filter: blur(12px);
             padding: 12px 28px;
             border-radius: 60px;
@@ -187,259 +187,338 @@
    DASHBOARD SECTION
  ========================= */
 
- .dashboard-section{
+ 
+.two-columns {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 25px;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    margin-top: 25px; /* ADDED: Space between stat cards and these cards */
+}
 
-    margin-top:25px;
 
-    display:grid;
+.stats-grid {
+    margin-bottom: 48px; /* Space below stat cards */
+}
 
-    grid-template-columns:0.9fr 0.9fr;
+/* Or if stat cards are in a different wrapper */
+.stats-container {
+    margin-bottom: 40px;
+}
 
-    gap:10px;
 
-    align-items:start;
+/* LEFT PANEL - Select Stock & Date Card */
+.left-panel,
+.right-panel {
+    flex: 1;
+    background: rgba(10, 16, 28, 0.65);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 30px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    transition: all 0.2s ease;
+}
+
+/* RIGHT PANEL - Forecast Insight Card */
+.right-panel {
+    background: rgba(10, 16, 28, 0.65);
+}
+
+/* Panel Titles - Same size and style */
+.panel-title {
+    font-size: 16px !important;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-left: 3px solid #38bdf8;
+    padding-left: 12px;
+}
+
+.panel-title i {
+    color: #38bdf8;
+    font-size: 16px;
+}
+
+/* TOP INPUTS ROW */
+.top-inputs {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.input-box {
+    flex: 1;
+}
+
+.input-box label {
+    display: block;
+    color: #cbd5e1;
+    font-size: 12px;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.input-box select,
+.input-box input {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+}
+
+.input-box select:focus,
+.input-box input:focus {
+    border-color: #38bdf8;
+}
+
+/* BOTTOM ROW */
+.bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-top: 5px;
+}
+
+.selected-stock {
+    background: rgba(56, 189, 248, 0.12);
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: #94a3b8;
+    flex: 1;
+}
+
+.selected-stock span {
+    color: #38bdf8;
+    font-weight: 600;
+    margin-left: 5px;
+}
+
+/* PREDICT BUTTON */
+.predict-btn {
+    background: linear-gradient(135deg, #2563eb, #38bdf8);
+    border: none;
+    padding: 8px 24px;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.predict-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(37, 99, 235, 0.3);
+}
+
+/* FORECAST INSIGHT ROWS */
+.forecast-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.forecast-label {
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.forecast-value {
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.forecast-value.green {
+    color: #4ade80;
+    font-weight: 600;
+}
+
+/* BIG PREDICTION PRICE */
+.big-prediction {
+    text-align: center;
+    font-size: 32px;
+    font-weight: 800;
+    color: #4ade80;
+    margin: 15px 0 8px;
+    letter-spacing: -0.5px;
+}
+
+.prediction-badge {
+    text-align: center;
+    background: rgba(74, 222, 128, 0.12);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: #4ade80;
+    display: inline-block;
+    width: 100%;
+}
+
+/* Responsive: On smaller screens, stack vertically */
+@media (max-width: 900px) {
+    .two-columns {
+        flex-wrap: wrap;
+        gap: 18px;
+    }
+    
+    .left-panel,
+    .right-panel {
+        flex: none;
+        width: 100%;
+    }
+    
+    .top-inputs {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .bottom-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .selected-stock {
+        text-align: center;
+    }
+    
+    .predict-btn {
+        width: 100%;
+    }
+}
+
+/* For very large screens, keep cards proportional */
+@media (min-width: 1400px) {
+    .left-panel,
+    .right-panel {
+        padding: 22px 28px;
+    }
+    
+    .big-prediction {
+        font-size: 36px;
+    }
 }
 
 /* =========================
-   PANELS
+   CHART SECTION
 ========================= */
 
-.left-panel,
-.right-panel{
+.chart-section{
+
+    margin-top:35px;
 
     background:rgba(5,15,35,0.95);
 
     border:1px solid rgba(255,255,255,0.08);
 
-    border-radius:22px;
+    border-radius:30px;
 
-    padding:25px;
-    
-}
-
-
-
-
-/* =========================
-   PANEL TITLE
-========================= */
-
-.panel-title{
-
-    color:white;
-
-    font-size:24px;
-
-    margin-bottom:35px;
-
-    display:flex;
-
-    align-items:center;
-
-    gap:15px;
-}
-
-.panel-title i{
-
-    color:#38bdf8;
+    padding:30px;
 }
 
 /* =========================
-   TOP INPUTS
+   CHART HEADER
 ========================= */
 
-.top-inputs{
-
-    display:grid;
-
-    grid-template-columns:1fr 1fr;
-
-    gap:25px;
-
-    margin-bottom:30px;
-}
-
-/* =========================
-   INPUT BOX
-========================= */
-
-.input-box{
-
-    display:flex;
-
-    flex-direction:column;
-}
-
-.input-box label{
-
-    color:#94a3b8;
-
-    margin-bottom:12px;
-
-    font-size:18px;
-}
-
-.input-box select,
-.input-box input{
-
-    height:60px;
-
-    border-radius:18px;
-
-    border:1px solid rgba(255,255,255,0.1);
-
-    background:#020817;
-
-    color:white;
-
-    padding:0 20px;
-
-    font-size:18px;
-    
-    outline:none;
-}
-
-/* =========================
-   BOTTOM ROW
-========================= */
-
-.bottom-row{
+.chart-header{
 
     display:flex;
 
     justify-content:space-between;
 
     align-items:center;
+
+    margin-bottom:25px;
 }
 
-/* =========================
-   SELECTED STOCK TEXT
-========================= */
+.chart-header h2{
 
-.selected-stock{
+    color:white;
 
-    color:#94a3b8;
+    font-size:28px;
 
-    font-size:18px;
+    display:flex;
+
+    align-items:center;
+
+    gap:12px;
 }
 
-.selected-stock span{
+.chart-header h2 i{
 
     color:#38bdf8;
-
-    font-weight:600;
 }
 
 /* =========================
-   PREDICT BUTTON
+   DOWNLOAD BUTTON
 ========================= */
 
-.predict-btn{
+.download-btn{
 
-    width:180px;
+    height:50px;
 
-    height:60px;
+    padding:0 24px;
 
     border:none;
 
-    border-radius:18px;
+    border-radius:16px;
 
     background:linear-gradient(
         135deg,
-        #22c55e,
-        #16a34a
+        #2563eb,
+        #38bdf8
     );
 
     color:white;
 
-    font-size:20px;
+    font-size:16px;
 
-    font-weight:700;
+    font-weight:600;
 
     cursor:pointer;
 
     transition:0.3s;
 }
 
-.predict-btn:hover{
+.download-btn:hover{
 
-    transform:translateY(-3px);
+    transform:translateY(-2px);
 
     box-shadow:
-    0 0 25px rgba(34,197,94,0.3);
+    0 0 20px rgba(56,189,248,0.35);
 }
 
 /* =========================
-   FORECAST ROW
+   CHART CONTAINER
 ========================= */
 
-.forecast-row{
+.chart-container{
 
-    display:flex;
+    width:100%;
 
-    justify-content:space-between;
+    height:500px;
 
-    padding:8px 0;
-
+    position:relative;
 }
 
-.forecast-label{
+#stockChart{
 
-    color:#94a3b8;
+    width:100% !important;
 
-    font-size:16px;
+    height:100% !important;
 }
-
-.forecast-value{
-
-    color:white;
-
-    font-size:18px;
-
-}
-
-.green{
-
-    color:#4ade80;
-}
-
-/* =========================
-   BIG PREDICTION
-========================= */
-
-.big-prediction{
-
-    text-align:center;
-
-    font-size:42px;
-
-    font-weight:700;
-
-    color:#4ade80;
-
-    margin-top:15px;
-}
-
-/* =========================
-   BADGE
- ========================= */
-
-.prediction-badge{
-
-    margin-top:12px;
-
-    background:rgba(34,197,94,0.12);
-
-    color:#4ade80;
-
-    text-align:center;
-
-    padding:10px;
-
-    border-radius:20px;
-
-    font-size:10px;
-
-    font-weight:600;
-}
-

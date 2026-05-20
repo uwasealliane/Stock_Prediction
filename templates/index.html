@@ -123,129 +123,88 @@
      MAIN DASHBOARD SECTION
 ========================= -->
 
-<div class="dashboard-section">
-
+<div class="two-columns">
     <!-- LEFT PANEL -->
     <div class="left-panel">
-
         <h2 class="panel-title">
             <i class="fa-solid fa-chart-pie"></i>
             Select Stock & Date
         </h2>
-
         <form method="POST">
-
-            <!-- TOP ROW -->
             <div class="top-inputs">
-
-                <!-- STOCK -->
                 <div class="input-box">
-
                     <label>Select Stock</label>
-
                     <select name="stock">
-
                         <option>AAPL - Apple Inc.</option>
-
                     </select>
-
                 </div>
-
-                <!-- DATE -->
                 <div class="input-box">
-
                     <label>Selected Date</label>
-
-                    <input
-                        type="date"
-                        name="date"
-                        min="{{ min_date }}"
-                        max="{{ max_date }}"
-                        value="{{ selected_date }}"
-                        required
-                    >
-
+                    <input type="date" name="date" min="1980-12-12" max="2020-04-02" value="1980-12-13" required>
                 </div>
-
             </div>
-
-            <!-- BOTTOM ROW -->
             <div class="bottom-row">
-
                 <div class="selected-stock">
+
                     ✅ Selected Stock:
-                    <span>AAPL - Apple Inc.</span>
-                </div>
+                  <span>AAPL</span>
+                  </div>
 
-                <button type="submit" class="predict-btn">
-                    Predict
-                </button>
-
+                <button type="submit" class="predict-btn">Predict</button>
             </div>
-
         </form>
-
     </div>
 
     <!-- RIGHT PANEL -->
     <div class="right-panel">
 
+
+        
         <h2 class="panel-title">
             <i class="fa-solid fa-chart-line"></i>
             Forecast Insight
         </h2>
-
-        <!-- SELECTED DATE -->
         <div class="forecast-row">
-
-            <span class="forecast-label">
-                Selected Date
-            </span>
-
-            <span class="forecast-value">
-                {{ selected_date }}
-            </span>
-
+            <span class="forecast-label">Selected Date</span>
+            <span class="forecast-value">1980-12-13</span>
         </div>
-
-        <!-- ACTUAL PRICE -->
         <div class="forecast-row">
-
-            <span class="forecast-label">
-                Actual Price
-            </span>
-
-            <span class="forecast-value green">
-                ${{ "%.2f"|format(actual_price) if actual_price else "—" }}
-            </span>
-
+            <span class="forecast-label">Actual Price</span>
+            <span class="forecast-value green">$0.00</span>
         </div>
-
-        <!-- PREDICTED DATE -->
         <div class="forecast-row">
-
-            <span class="forecast-label">
-                Predicted Date
-            </span>
-
-            <span class="forecast-value">
-                {{ next_date }}
-            </span>
-
+            <span class="forecast-label">Predicted Date</span>
+            <span class="forecast-value">None</span>
         </div>
+        <div class="big-prediction">$0.00</div>
+        <div class="prediction-badge">📈 AI Predicted Price</div>
+    </div>
+</div>
+<!-- =========================
+     GRAPH SECTION
+========================= -->
 
-        <!-- PREDICTED PRICE -->
-        <div class="big-prediction">
+<div class="chart-section">
 
-            ${{ "%.2f"|format(predictions[-1]) if predictions else "0.00" }}
+    <div class="chart-header">
 
-        </div>
+        <h2>
+            <i class="fas fa-chart-line"></i>
+            Stock Prediction Chart
+        </h2>
 
-        <div class="prediction-badge">
+        <button class="download-btn">
 
-            📈 AI Predicted Price
+            <i class="fas fa-download"></i>
+            Download Report
 
-        </div>
+        </button>
+
+    </div>
+
+    <div class="chart-container">
+
+        <canvas id="stockChart"></canvas>
 
     </div>
 
@@ -254,5 +213,185 @@
 
     </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+const ctx = document.getElementById('stockChart').getContext('2d');
+
+/* =========================
+   GLOW EFFECT
+========================= */
+
+const glowPlugin = {
+
+    id:'glowEffect',
+
+    beforeDatasetDraw(chart,args,pluginOptions){
+
+        const {ctx} = chart;
+
+        ctx.save();
+
+        ctx.shadowColor = '#67e8f9';
+
+        ctx.shadowBlur = 20;
+
+        ctx.shadowOffsetX = 0;
+
+        ctx.shadowOffsetY = 0;
+    },
+
+    afterDatasetDraw(chart,args,pluginOptions){
+
+        chart.ctx.restore();
+    }
+};
+
+/* =========================
+   CHART
+========================= */
+
+new Chart(ctx, {
+
+    type:'line',
+
+    data:{
+
+        labels:[
+            'Mon',
+            'Tue',
+            'Wed',
+            'Thu',
+            'Fri',
+            'Sat',
+            'Sun'
+        ],
+
+        datasets:[
+
+            {
+                label:'Actual Price',
+
+                data:[
+                    180,
+                    185,
+                    183,
+                    190,
+                    210,
+                    200,
+                    215
+                ],
+
+                borderColor:'#67e8f9',
+
+                backgroundColor:'rgba(103,232,249,0.12)',
+
+                fill:true,
+
+                tension:0.4,
+
+                borderWidth:4,
+
+                pointRadius:0
+            },
+
+            {
+                label:'Predicted Price',
+
+                data:[
+                    170,
+                    178,
+                    182,
+                    188,
+                    205,
+                    208,
+                    225
+                ],
+
+                borderColor:'#4ade80',
+
+                backgroundColor:'rgba(74,222,128,0.08)',
+
+                fill:true,
+
+                tension:0.4,
+
+                borderWidth:4,
+
+                borderDash:[10,5],
+
+                /* GLOWING POINT */
+
+               pointRadius: function(context){
+
+    const index = context.dataIndex;
+
+    const total = context.dataset.data.length;
+
+    return index === total - 1 ? 8 : 0;
+},
+
+pointHoverRadius: function(context){
+
+    const index = context.dataIndex;
+
+    const total = context.dataset.data.length;
+
+    return index === total - 1 ? 10 : 0;
+},
+
+pointBackgroundColor:'#a7f3d0',
+
+pointBorderColor:'#ffffff',
+
+pointBorderWidth:3
+            }
+        ]
+    },
+
+    options:{
+
+        responsive:true,
+
+        maintainAspectRatio:false,
+
+        plugins:{
+
+            legend:{
+                labels:{
+                    color:'white'
+                }
+            }
+        },
+
+        scales:{
+
+            x:{
+                ticks:{
+                    color:'#94a3b8'
+                },
+
+                grid:{
+                    color:'rgba(255,255,255,0.05)'
+                }
+            },
+
+            y:{
+                ticks:{
+                    color:'#94a3b8'
+                },
+
+                grid:{
+                    color:'rgba(255,255,255,0.05)'
+                }
+            }
+        }
+    },
+
+    plugins:[glowPlugin]
+});
+
+</script>
 </body>
 </html>
