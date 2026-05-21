@@ -1,17 +1,15 @@
 import pandas as pd
 
 def load_data():
+
     # =========================
-# LOAD LIVE STOCK DATA
-# =========================
- stock_symbol = "AAPL"
+    # LOAD CSV DATASET
+    # =========================
+    data = pd.read_csv("data.csv")
 
-data = yf.download(
-    stock_symbol,
-    start="1980-01-01",
-    end="2020-04-02"
-)
+    # Convert Date column
+    data['Date'] = pd.to_datetime(data['Date'])
 
- data.reset_index(inplace=True)  
- print("Data loaded successfully")
- return data
+    print("CSV data loaded successfully ✅")
+
+    return data

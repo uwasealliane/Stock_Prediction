@@ -1,35 +1,37 @@
 from flask import Flask, render_template, request
 from tensorflow.keras.models import load_model
 from preprocess import preprocess_data
-from datetime import datetime, timedelta
-import pandas as pd
-import yfinance as yf
-import numpy as np
-from sklearn.metrics import mean_absolute_error, mean_squared_error
 
+import pandas as pd
+import numpy as np
+
+from datetime import timedelta
+
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error
+)
 
 # =========================
-# CREATE FLASK APP
+# CREATE APP
 # =========================
 app = Flask(__name__)
 
-import os
-
-
 # =========================
-# LOAD AAPL DATA
+# LOAD DATA
 # =========================
 data = pd.read_csv("data.csv")
 
-# Convert Date column
 data['Date'] = pd.to_datetime(data['Date'])
 
-# Dataset range
+# =========================
+# DATE RANGE
+# =========================
 MIN_DATE = data['Date'].min().strftime("%Y-%m-%d")
 MAX_DATE = data['Date'].max().strftime("%Y-%m-%d")
 
 # =========================
-# PREPROCESS DATA
+# PREPROCESS
 # =========================
 X, y, scaler = preprocess_data(data)
 
@@ -49,8 +51,33 @@ y_test = y[split:]
 # =========================
 model = load_model("model.h5")
 
-print("AAPL Model loaded successfully ✅")
-print(f"Data range: {MIN_DATE} to {MAX_DATE}")
+print("MODEL LOADED SUCCESSFULLY ✅")
+
+# =========================
+# MODEL EVALUATION
+# =========================
+y_pred = model.predict(X_test, verbose=0)
+
+dummy_test = np.zeros((len(y_test), 5))
+dummy_pred = np.zeros((len(y_pred), 5))
+
+dummy_test[:, 3] = y_test
+dummy_pred[:, 3] = y_pred.flatten()
+
+y_test_inv = scaler.inverse_transform(dummy_test)[:, 3]
+y_pred_inv = scaler.inverse_transform(dummy_pred)[:, 3]
+
+mae_global = mean_absolute_error(
+    y_test_inv,
+    y_pred_inv
+)
+
+rmse_global = np.sqrt(
+    mean_squared_error(
+        y_test_inv,
+        y_pred_inv
+    )
+)
 
 # =========================
 # HOME ROUTE
@@ -58,38 +85,51 @@ print(f"Data range: {MIN_DATE} to {MAX_DATE}")
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    predictions = None
-    mae = None
-    rmse = None
-    error = None
-    trend = None
-    next_date = None
-
+    # =========================
+    # DEFAULT VALUES
+    # =========================
     selected_date = MAX_DATE
 
-    historical_prices = None
-    historical_dates = None
-    prediction_dates = None
+    actual_price = 0.00
+    predicted_price = 0.00
+
+    next_date = "None"
+
+    trend = "WAITING"
+
+    confidence = 0.0
+
+    mae = round(mae_global, 2)
+    rmse = round(rmse_global, 2)
+
+    chart_labels = []
+    actual_chart = []
+    predicted_chart = []
+
+    error = None
 
     # =========================
-    # WHEN USER SUBMITS
+    # WHEN USER PREDICTS
     # =========================
     if request.method == "POST":
 
         try:
 
             # =========================
-            # GET DATE FROM CALENDAR
+            # GET DATE
             # =========================
             selected_date = request.form.get("date")
 
-            # Convert selected date
-            selected_dt = pd.to_datetime(selected_date)
+            selected_dt = pd.to_datetime(
+                selected_date
+            )
 
             # =========================
-            # FIND SELECTED ROW
+            # FIND DATE ROW
             # =========================
-            matched_rows = data[data['Date'] == selected_dt]
+            matched_rows = data[
+                data['Date'] == selected_dt
+            ]
 
             if len(matched_rows) == 0:
 
@@ -100,32 +140,52 @@ def index():
                 row_index = matched_rows.index[0]
 
                 # =========================
-                # NEED 60 PREVIOUS DAYS
+                # NEED 60 DAYS
                 # =========================
                 if row_index < 60:
 
-                    error = "Not enough previous data"
+                    error = "Need at least 60 previous days"
 
                 else:
 
                     # =========================
+                    # ACTUAL PRICE
+                    # =========================
+                    actual_price = float(
+                        data.iloc[row_index]['Close']
+                    )
+
+                    # =========================
                     # GET LAST 60 DAYS
                     # =========================
-                    sequence_data = data.iloc[row_index-60:row_index]
-
-                    # Select features
-                    sequence_data = sequence_data[
-                        ['Open', 'High', 'Low', 'Close', 'Volume']
+                    sequence_data = data.iloc[
+                        row_index-60:row_index
+                    ][
+                        ['Open',
+                         'High',
+                         'Low',
+                         'Close',
+                         'Volume']
                     ]
 
-                    # Scale data
-                    scaled_sequence = scaler.transform(sequence_data)
-
-                    # Reshape for LSTM
-                    current_input = scaled_sequence.reshape(1, 60, 5)
+                    # =========================
+                    # SCALE
+                    # =========================
+                    scaled_sequence = scaler.transform(
+                        sequence_data
+                    )
 
                     # =========================
-                    # PREDICT NEXT DAY
+                    # RESHAPE
+                    # =========================
+                    current_input = scaled_sequence.reshape(
+                        1,
+                        60,
+                        5
+                    )
+
+                    # =========================
+                    # PREDICT
                     # =========================
                     pred = model.predict(
                         current_input,
@@ -137,12 +197,15 @@ def index():
                     # =========================
                     dummy = np.zeros((1, 5))
 
-                    # Close price column
                     dummy[0, 3] = pred
 
-                    real_prediction = scaler.inverse_transform(dummy)[0][3]
+                    predicted_price = scaler.inverse_transform(
+                        dummy
+                    )[0][3]
 
-                    predictions = [float(real_prediction)]
+                    predicted_price = float(
+                        predicted_price
+                    )
 
                     # =========================
                     # NEXT DATE
@@ -154,61 +217,58 @@ def index():
                     # =========================
                     # TREND
                     # =========================
-                    # Calculate trend
-                    last_real_price = sequence_data['Close'].iloc[-1]
+                    if predicted_price > actual_price:
 
-                    if predictions[0] > last_real_price:
-                     trend = "UP"
+                        trend = "BULLISH"
+
                     else:
-                      trend = "DOWN"
+
+                        trend = "BEARISH"
 
                     # =========================
-                    # HISTORICAL CHART DATA
+                    # CONFIDENCE
                     # =========================
-                    historical_df = data.iloc[row_index-30:row_index]
+                    confidence = round(
+                        (1 - (mae / predicted_price)) * 100,
+                        1
+                    )
 
-                    historical_prices = historical_df[
+                    # =========================
+                    # CHART DATA
+                    # =========================
+                    historical_df = data.iloc[
+                        row_index-7:row_index
+                    ]
+
+                    chart_labels = historical_df[
+                        'Date'
+                    ].dt.strftime(
+                        "%d %b"
+                    ).tolist()
+
+                    actual_chart = historical_df[
                         'Close'
                     ].tolist()
 
-                    historical_dates = historical_df[
-                        'Date'
-                    ].dt.strftime("%Y-%m-%d").tolist()
-
-                    prediction_dates = [next_date]
-
-                    # =========================
-                    # MODEL EVALUATION
-                    # =========================
-                    y_pred = model.predict(
-                        X_test,
-                        verbose=0
+                    # ADD PREDICTION LABEL
+                    chart_labels.append(
+                        "Prediction"
                     )
 
-                    dummy_test = np.zeros((len(y_test), 5))
-                    dummy_pred = np.zeros((len(y_pred), 5))
+                    # CONTINUE ACTUAL LINE
+                    actual_chart.append(None)
 
-                    dummy_test[:, 3] = y_test.flatten()
-                    dummy_pred[:, 3] = y_pred.flatten()
-
-                    y_test_inv = scaler.inverse_transform(
-                        dummy_test
-                    )[:, 3]
-
-                    y_pred_inv = scaler.inverse_transform(
-                        dummy_pred
-                    )[:, 3]
-
-                    mae = mean_absolute_error(
-                        y_test_inv,
-                        y_pred_inv
+                    # PREDICTION LINE
+                    predicted_chart = [None] * (
+                        len(actual_chart) - 2
                     )
 
-                    rmse = np.sqrt(
-                        mean_squared_error(
-                            y_test_inv,
-                            y_pred_inv
-                        )
+                    predicted_chart.append(
+                        actual_chart[-2]
+                    )
+
+                    predicted_chart.append(
+                        predicted_price
                     )
 
         except Exception as e:
@@ -216,26 +276,44 @@ def index():
             error = str(e)
 
     # =========================
-    # RETURN PAGE
+    # RETURN TEMPLATE
     # =========================
     return render_template(
+
         "index.html",
-        predictions=predictions,
-        mae=mae,
-        rmse=rmse,
-        error=error,
-        trend=trend,
-        next_date=next_date,
+
         selected_date=selected_date,
+
+        actual_price=actual_price,
+
+        predicted_price=predicted_price,
+
+        next_date=next_date,
+
+        trend=trend,
+
+        confidence=confidence,
+
+        mae=mae,
+
+        rmse=rmse,
+
         min_date=MIN_DATE,
+
         max_date=MAX_DATE,
-        historical_prices=historical_prices,
-        historical_dates=historical_dates,
-        prediction_dates=prediction_dates
+
+        chart_labels=chart_labels,
+
+        actual_chart=actual_chart,
+
+        predicted_chart=predicted_chart,
+
+        error=error
     )
 
 # =========================
 # RUN APP
 # =========================
 if __name__ == "__main__":
+
     app.run(debug=True)

@@ -37,11 +37,18 @@
             <h2><i class="fas fa-chart-line" style="color:#38bdf8"></i> StockPrice AI</h2>
             <p>LSTM Deep Learning Forecast Engine</p>
         </div>
-        <div class="nav-links">
-            <a href="#">Overview</a>
-            <a href="#">History</a>
-            <a href="#" class="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a>
-        </div>
+       <div class="nav-links">
+
+    <a href="/">Overview</a>
+
+    <a href="#chart-section">History</a>
+
+    <a href="/" class="logout-btn">
+        <i class="fas fa-sign-out-alt"></i>
+        Logout
+    </a>
+
+</div>
     </div>
      <!-- =========================
      TOP STATISTICS
@@ -56,9 +63,13 @@
             MAE
         </p>
 
-        <h1 class="stat-value">
-            $3.11
-        </h1>
+      <h1 class="stat-value">
+    {% if mae %}
+        ${{ "%.2f"|format(mae) }}
+    {% else %}
+        $0.00
+    {% endif %}
+</h1>
 
         <p class="stat-description">
             Mean absolute error
@@ -74,8 +85,8 @@
         </p>
 
         <h1 class="stat-value">
-            $3.67
-        </h1>
+    ${{ "%.2f"|format(rmse) }}
+</h1>
 
         <p class="stat-description">
             Root mean sq error
@@ -91,8 +102,8 @@
         </p>
 
         <h1 class="stat-value">
-            91%
-        </h1>
+    {{ confidence }}%
+</h1>
 
         <p class="stat-description">
             Prediction confidence score
@@ -107,13 +118,16 @@
             ↗ NEXT TREND
         </p>
 
-        <h1 class="trend-value">
-            BULLISH
-        </h1>
+        <div class="prediction-badge">
 
-        <p class="stat-description">
-            +1.5% expected
-        </p>
+{% if trend == "BULLISH" %}
+📈 Bullish Prediction
+{% elif trend == "BEARISH" %}
+📉 Bearish Prediction
+{% else %}
+⏳ Waiting Prediction
+{% endif %}
+</div>
 
     </div>
 
@@ -140,8 +154,15 @@
                 </div>
                 <div class="input-box">
                     <label>Selected Date</label>
-                    <input type="date" name="date" min="1980-12-12" max="2020-04-02" value="1980-12-13" required>
-                </div>
+                   
+             <input
+type="date"
+name="date"
+min="{{ min_date }}"
+max="{{ max_date }}"
+value="{{ selected_date }}"
+required>
+ </div>
             </div>
             <div class="bottom-row">
                 <div class="selected-stock">
@@ -166,25 +187,29 @@
         </h2>
         <div class="forecast-row">
             <span class="forecast-label">Selected Date</span>
-            <span class="forecast-value">1980-12-13</span>
+            <span class="forecast-value">{{ selected_date }}</span>
         </div>
         <div class="forecast-row">
             <span class="forecast-label">Actual Price</span>
-            <span class="forecast-value green">$0.00</span>
+           <span class="forecast-value green">
+    ${{ "%.2f"|format(actual_price) }}
+</span>
         </div>
         <div class="forecast-row">
             <span class="forecast-label">Predicted Date</span>
-            <span class="forecast-value">None</span>
+            <span class="forecast-value">{{ next_date }}</span>
         </div>
-        <div class="big-prediction">$0.00</div>
-        <div class="prediction-badge">📈 AI Predicted Price</div>
+      <div class="big-prediction">
+    ${{ "%.2f"|format(predicted_price) }}
+</div>
+        <div class="prediction-badge">📈 {{ trend }}</div>
     </div>
 </div>
 <!-- =========================
      GRAPH SECTION
 ========================= -->
 
-<div class="chart-section">
+<div class="chart-section" id="chart-section">
 
     <div class="chart-header">
 
@@ -256,99 +281,74 @@ new Chart(ctx, {
 
     type:'line',
 
-    data:{
+    data: {
 
-        labels:[
-            'Mon',
-            'Tue',
-            'Wed',
-            'Thu',
-            'Fri',
-            'Sat',
-            'Sun'
-        ],
+    labels: {{ chart_labels | tojson | safe }},
 
-        datasets:[
+    datasets: [
 
-            {
-                label:'Actual Price',
+        {
+            label: 'Actual Price',
 
-                data:[
-                    180,
-                    185,
-                    183,
-                    190,
-                    210,
-                    200,
-                    215
-                ],
+            data: {{ actual_chart | tojson | safe }},
 
-                borderColor:'#67e8f9',
+            borderColor: '#67e8f9',
 
-                backgroundColor:'rgba(103,232,249,0.12)',
+            backgroundColor: 'rgba(103,232,249,0.12)',
 
-                fill:true,
+            fill: false,
 
-                tension:0.4,
+            tension: 0.4,
 
-                borderWidth:4,
+            borderWidth: 4,
 
-                pointRadius:0
+            pointRadius: 3
+        },
+
+        {
+            label: 'Predicted Price',
+
+            data: {{ predicted_chart | tojson | safe }},
+
+            borderColor: '#4ade80',
+
+            backgroundColor: 'rgba(74,222,128,0.08)',
+
+            fill: false,
+
+            tension: 0.4,
+
+            borderWidth: 4,
+
+            borderDash: [10,5],
+
+            pointRadius: function(context){
+
+                const index = context.dataIndex;
+
+                const total = context.dataset.data.length;
+
+                return index === total - 1 ? 8 : 0;
             },
 
-            {
-                label:'Predicted Price',
+            pointHoverRadius: function(context){
 
-                data:[
-                    170,
-                    178,
-                    182,
-                    188,
-                    205,
-                    208,
-                    225
-                ],
+                const index = context.dataIndex;
 
-                borderColor:'#4ade80',
+                const total = context.dataset.data.length;
 
-                backgroundColor:'rgba(74,222,128,0.08)',
+                return index === total - 1 ? 10 : 0;
+            },
 
-                fill:true,
+            pointBackgroundColor: '#ffffff',
 
-                tension:0.4,
+            pointBorderColor: '#4ade80',
 
-                borderWidth:4,
+            pointBorderWidth: 3
+        }
 
-                borderDash:[10,5],
-
-                /* GLOWING POINT */
-
-               pointRadius: function(context){
-
-    const index = context.dataIndex;
-
-    const total = context.dataset.data.length;
-
-    return index === total - 1 ? 8 : 0;
+    ]
 },
-
-pointHoverRadius: function(context){
-
-    const index = context.dataIndex;
-
-    const total = context.dataset.data.length;
-
-    return index === total - 1 ? 10 : 0;
-},
-
-pointBackgroundColor:'#a7f3d0',
-
-pointBorderColor:'#ffffff',
-
-pointBorderWidth:3
-            }
-        ]
-    },
 
     options:{
 
