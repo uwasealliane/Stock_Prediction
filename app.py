@@ -212,7 +212,7 @@ def logout():
     return redirect(url_for("login"))
 
 # =========================
-# HOME
+# HOME PAGE
 # =========================
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -226,8 +226,8 @@ def index():
 
     selected_date = MAX_DATE
 
-    actual_price = 0.00
-    predicted_price = 0.00
+    actual_price = 0.0
+    predicted_price = 0.0
 
     next_date = "None"
 
@@ -251,16 +251,24 @@ def index():
 
         y_pred = model.predict(X_test, verbose=0)
 
-        y_test_reshaped = y_test.reshape(-1, 1)
+        # CREATE DUMMY ARRAYS
+        y_test_dummy = np.zeros((len(y_test), 5))
+        y_pred_dummy = np.zeros((len(y_pred), 5))
 
+        # PUT CLOSE PRICE
+        y_test_dummy[:, 3] = y_test
+        y_pred_dummy[:, 3] = y_pred.flatten()
+
+        # INVERSE TRANSFORM
         y_test_inv = scaler.inverse_transform(
-            y_test_reshaped
-        )
+            y_test_dummy
+        )[:, 3]
 
         y_pred_inv = scaler.inverse_transform(
-            y_pred
-        )
+            y_pred_dummy
+        )[:, 3]
 
+        # METRICS
         mae = float(
             mean_absolute_error(
                 y_test_inv,
@@ -315,10 +323,16 @@ def index():
 
                 else:
 
+                    # =========================
+                    # ACTUAL PRICE
+                    # =========================
                     actual_price = float(
                         data.iloc[row_index]['Close']
                     )
 
+                    # =========================
+                    # LAST 60 DAYS
+                    # =========================
                     sequence_data = data.iloc[
                         row_index-60:row_index
                     ][[
@@ -344,22 +358,31 @@ def index():
                         verbose=0
                     )[0][0]
 
-                    dummy = np.zeros((1, 5))
+                    # =========================
+                    # INVERSE TRANSFORM
+                    # =========================
+                    dummy_array = np.zeros((1, 5))
 
-                    dummy[0, 3] = pred
+                    dummy_array[0, 3] = pred
 
                     predicted_price = scaler.inverse_transform(
-                        dummy
+                        dummy_array
                     )[0][3]
 
                     predicted_price = float(
                         predicted_price
                     )
 
+                    # =========================
+                    # NEXT DATE
+                    # =========================
                     next_date = (
                         selected_dt + timedelta(days=1)
                     ).strftime("%Y-%m-%d")
 
+                    # =========================
+                    # TREND
+                    # =========================
                     if predicted_price > actual_price:
 
                         trend = "BULLISH 📈"
@@ -368,17 +391,22 @@ def index():
 
                         trend = "BEARISH 📉"
 
-                    confidence = (
-                        100 - (
-                            mae / predicted_price
-                        ) * 100
+                    # =========================
+                    # CONFIDENCE
+                    # =========================
+                    confidence = max(
+                        0,
+                        round(
+                            100 - (
+                                mae / predicted_price
+                            ) * 100,
+                            1
+                        )
                     )
 
-                    confidence = round(
-                        confidence,
-                        1
-                    )
-
+                    # =========================
+                    # CHART
+                    # =========================
                     historical_df = data.iloc[
                         row_index-7:row_index
                     ]
