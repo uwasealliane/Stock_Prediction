@@ -22,260 +22,374 @@
 
 <body>
 
+<div class="container">
+
+<div class="dashboard">
+
     <!-- =========================
-         MAIN CONTAINER
+         NAVBAR
     ========================== -->
-    <div class="container">
 
-        <!-- =========================
-             NAVBAR
-        ========================== -->
-     <div class="dashboard">
-    <!-- Header with navigation similar to image -->
     <div class="nav-header">
+
         <div class="logo-area">
-            <h2><i class="fas fa-chart-line" style="color:#38bdf8"></i> StockPrice AI</h2>
-            <p>LSTM Deep Learning Forecast Engine</p>
+
+            <h2>
+                <i class="fas fa-chart-line"
+                   style="color:#38bdf8"></i>
+
+                StockPrice AI
+            </h2>
+
+            <p>
+                LSTM Deep Learning Forecast Engine
+            </p>
+
         </div>
-       <div class="nav-links">
 
-    <a href="/">Overview</a>
+        <div class="nav-links">
 
-    <a href="#chart-section">History</a>
+            <span class="user-name">
+                👋 {{ username }}
+            </span>
 
-    <a href="/" class="logout-btn">
-        <i class="fas fa-sign-out-alt"></i>
-        Logout
-    </a>
+            <a href="/">Overview</a>
 
-</div>
+            <a href="/download-report">
+                Download Report
+            </a>
+
+            <a href="/logout"
+               class="logout-btn">
+
+                <i class="fas fa-sign-out-alt"></i>
+
+                Logout
+
+            </a>
+
+        </div>
+
     </div>
-     <!-- =========================
-     TOP STATISTICS
-     ========================= -->
 
- <div class="stats-container">
+    <!-- =========================
+         ERROR MESSAGE
+    ========================== -->
 
-    <!-- CARD 1 -->
-    <div class="stat-card">
+    {% if error %}
 
-        <p class="stat-title">
-            MAE
-        </p>
+    <div class="error-box">
 
-      <h1 class="stat-value">
-    {% if mae %}
-        ${{ "%.2f"|format(mae) }}
-    {% else %}
-        $0.00
+        {{ error }}
+
+    </div>
+
     {% endif %}
-</h1>
 
-        <p class="stat-description">
-            Mean absolute error
-        </p>
+    <!-- =========================
+         TOP STATISTICS
+    ========================== -->
+
+    <div class="stats-container">
+
+        <!-- MAE -->
+
+        <div class="stat-card">
+
+            <p class="stat-title">
+                MAE
+            </p>
+
+            <h1 class="stat-value">
+
+                ${{ "%.2f"|format(mae) }}
+
+            </h1>
+
+            <p class="stat-description">
+                Mean absolute error
+            </p>
+
+        </div>
+
+        <!-- RMSE -->
+
+        <div class="stat-card">
+
+            <p class="stat-title">
+                RMSE
+            </p>
+
+            <h1 class="stat-value">
+
+                ${{ "%.2f"|format(rmse) }}
+
+            </h1>
+
+            <p class="stat-description">
+                Root mean square error
+            </p>
+
+        </div>
+
+        <!-- CONFIDENCE -->
+
+        <div class="stat-card">
+
+            <p class="stat-title">
+                CONFIDENCE
+            </p>
+
+            <h1 class="stat-value">
+
+                {{ confidence }}%
+
+            </h1>
+
+            <p class="stat-description">
+                Prediction confidence
+            </p>
+
+        </div>
+
+        <!-- TREND -->
+
+        <div class="stat-card">
+
+            <p class="stat-title">
+                NEXT TREND
+            </p>
+
+            <h1 class="trend-value">
+
+                {{ trend }}
+
+            </h1>
+
+            <p class="stat-description">
+
+                AI future prediction
+
+            </p>
+
+        </div>
 
     </div>
 
-    <!-- CARD 2 -->
-    <div class="stat-card">
+    <!-- =========================
+         MAIN SECTION
+    ========================== -->
 
-        <p class="stat-title">
-            RMSE
-        </p>
+    <div class="two-columns">
 
-        <h1 class="stat-value">
-    ${{ "%.2f"|format(rmse) }}
-</h1>
+        <!-- LEFT PANEL -->
 
-        <p class="stat-description">
-            Root mean sq error
-        </p>
+        <div class="left-panel">
 
-    </div>
+            <h2 class="panel-title">
 
-    <!-- CARD 3 -->
-    <div class="stat-card">
+                <i class="fa-solid fa-chart-pie"></i>
 
-        <p class="stat-title">
-            % CONFIDENCE
-        </p>
+                Select Stock & Date
 
-        <h1 class="stat-value">
-    {{ confidence }}%
-</h1>
+            </h2>
 
-        <p class="stat-description">
-            Prediction confidence score
-        </p>
+            <form method="POST">
 
-    </div>
+                <div class="top-inputs">
 
-    <!-- CARD 4 -->
-    <div class="stat-card">
+                    <!-- STOCK -->
 
-        <p class="stat-title">
-            ↗ NEXT TREND
-        </p>
+                    <div class="input-box">
 
-        <div class="prediction-badge">
+                        <label>Select Stock</label>
 
-{% if trend == "BULLISH" %}
-📈 Bullish Prediction
-{% elif trend == "BEARISH" %}
-📉 Bearish Prediction
-{% else %}
-⏳ Waiting Prediction
-{% endif %}
-</div>
+                        <select name="stock">
 
-    </div>
+                            <option>
+                                AAPL - Apple Inc.
+                            </option>
 
-</div>
+                        </select>
 
-<!-- =========================
-     MAIN DASHBOARD SECTION
-========================= -->
+                    </div>
 
-<div class="two-columns">
-    <!-- LEFT PANEL -->
-    <div class="left-panel">
-        <h2 class="panel-title">
-            <i class="fa-solid fa-chart-pie"></i>
-            Select Stock & Date
-        </h2>
-        <form method="POST">
-            <div class="top-inputs">
-                <div class="input-box">
-                    <label>Select Stock</label>
-                    <select name="stock">
-                        <option>AAPL - Apple Inc.</option>
-                    </select>
+                    <!-- DATE -->
+
+                    <div class="input-box">
+
+                        <label>Selected Date</label>
+
+                        <input
+                            type="date"
+                            name="date"
+                            min="{{ min_date }}"
+                            max="{{ max_date }}"
+                            value="{{ selected_date }}"
+                            required
+                        >
+
+                    </div>
+
                 </div>
-                <div class="input-box">
-                    <label>Selected Date</label>
-                   
-             <input
-type="date"
-name="date"
-min="{{ min_date }}"
-max="{{ max_date }}"
-value="{{ selected_date }}"
-required>
- </div>
-            </div>
-            <div class="bottom-row">
-                <div class="selected-stock">
 
-                    ✅ Selected Stock:
-                  <span>AAPL</span>
-                  </div>
+                <!-- BUTTON -->
 
-                <button type="submit" class="predict-btn">Predict</button>
+                <div class="bottom-row">
+
+                    <div class="selected-stock">
+
+                        ✅ Selected Stock:
+
+                        <span>AAPL</span>
+
+                    </div>
+
+                    <button
+                        type="submit"
+                        class="predict-btn">
+
+                        Predict
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+        <!-- RIGHT PANEL -->
+
+        <div class="right-panel">
+
+            <h2 class="panel-title">
+
+                <i class="fa-solid fa-chart-line"></i>
+
+                Forecast Insight
+
+            </h2>
+
+            <!-- SELECTED DATE -->
+
+            <div class="forecast-row">
+
+                <span class="forecast-label">
+                    Selected Date
+                </span>
+
+                <span class="forecast-value">
+
+                    {{ selected_date }}
+
+                </span>
+
             </div>
-        </form>
+
+            <!-- ACTUAL PRICE -->
+
+            <div class="forecast-row">
+
+                <span class="forecast-label">
+                    Actual Price
+                </span>
+
+                <span class="forecast-value green">
+
+                    ${{ "%.2f"|format(actual_price) }}
+
+                </span>
+
+            </div>
+
+            <!-- NEXT DATE -->
+
+            <div class="forecast-row">
+
+                <span class="forecast-label">
+                    Predicted Date
+                </span>
+
+                <span class="forecast-value">
+
+                    {{ next_date }}
+
+                </span>
+
+            </div>
+
+            <!-- PREDICTION -->
+
+            <div class="big-prediction">
+
+                ${{ "%.2f"|format(predicted_price) }}
+
+            </div>
+
+            <!-- TREND -->
+
+            <div class="prediction-badge">
+
+                {{ trend }}
+
+            </div>
+
+        </div>
+
     </div>
 
-    <!-- RIGHT PANEL -->
-    <div class="right-panel">
+    <!-- =========================
+         CHART SECTION
+    ========================== -->
 
+    <div class="chart-section">
 
-        
-        <h2 class="panel-title">
-            <i class="fa-solid fa-chart-line"></i>
-            Forecast Insight
-        </h2>
-        <div class="forecast-row">
-            <span class="forecast-label">Selected Date</span>
-            <span class="forecast-value">{{ selected_date }}</span>
+        <div class="chart-header">
+
+            <h2>
+
+                <i class="fas fa-chart-line"></i>
+
+                Stock Prediction Chart
+
+            </h2>
+
+            <a href="/download-report"
+               class="download-btn">
+
+                <i class="fas fa-download"></i>
+
+                Download Report
+
+            </a>
+
         </div>
-        <div class="forecast-row">
-            <span class="forecast-label">Actual Price</span>
-           <span class="forecast-value green">
-    ${{ "%.2f"|format(actual_price) }}
-</span>
+
+        <div class="chart-container">
+
+            <canvas id="stockChart"></canvas>
+
         </div>
-        <div class="forecast-row">
-            <span class="forecast-label">Predicted Date</span>
-            <span class="forecast-value">{{ next_date }}</span>
-        </div>
-      <div class="big-prediction">
-    ${{ "%.2f"|format(predicted_price) }}
-</div>
-        <div class="prediction-badge">📈 {{ trend }}</div>
+
     </div>
+
 </div>
+
+</div>
+
 <!-- =========================
-     GRAPH SECTION
+     CHART JS
 ========================= -->
-
-<div class="chart-section" id="chart-section">
-
-    <div class="chart-header">
-
-        <h2>
-            <i class="fas fa-chart-line"></i>
-            Stock Prediction Chart
-        </h2>
-
-        <button class="download-btn">
-
-            <i class="fas fa-download"></i>
-            Download Report
-
-        </button>
-
-    </div>
-
-    <div class="chart-container">
-
-        <canvas id="stockChart"></canvas>
-
-    </div>
-
-</div>
-
-
-    </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
 
-const ctx = document.getElementById('stockChart').getContext('2d');
-
-/* =========================
-   GLOW EFFECT
-========================= */
-
-const glowPlugin = {
-
-    id:'glowEffect',
-
-    beforeDatasetDraw(chart,args,pluginOptions){
-
-        const {ctx} = chart;
-
-        ctx.save();
-
-        ctx.shadowColor = '#67e8f9';
-
-        ctx.shadowBlur = 20;
-
-        ctx.shadowOffsetX = 0;
-
-        ctx.shadowOffsetY = 0;
-    },
-
-    afterDatasetDraw(chart,args,pluginOptions){
-
-        chart.ctx.restore();
-    }
-};
-
-/* =========================
-   CHART
-========================= */
+const ctx =
+document.getElementById(
+    'stockChart'
+).getContext('2d');
 
 new Chart(ctx, {
 
@@ -283,72 +397,71 @@ new Chart(ctx, {
 
     data: {
 
-    labels: {{ chart_labels | tojson | safe }},
+        labels:
+        {{ chart_labels | tojson | safe }},
 
-    datasets: [
+        datasets:[
 
-        {
-            label: 'Actual Price',
+            {
+                label:'Actual Price',
 
-            data: {{ actual_chart | tojson | safe }},
+                data:
+                {{ actual_chart | tojson | safe }},
 
-            borderColor: '#67e8f9',
+                borderColor:'#67e8f9',
 
-            backgroundColor: 'rgba(103,232,249,0.12)',
+                backgroundColor:
+                'rgba(103,232,249,0.1)',
 
-            fill: false,
+                borderWidth:4,
 
-            tension: 0.4,
+                tension:0.4,
 
-            borderWidth: 4,
+                fill:false,
 
-            pointRadius: 3
-        },
-
-        {
-            label: 'Predicted Price',
-
-            data: {{ predicted_chart | tojson | safe }},
-
-            borderColor: '#4ade80',
-
-            backgroundColor: 'rgba(74,222,128,0.08)',
-
-            fill: false,
-
-            tension: 0.4,
-
-            borderWidth: 4,
-
-            borderDash: [10,5],
-
-            pointRadius: function(context){
-
-                const index = context.dataIndex;
-
-                const total = context.dataset.data.length;
-
-                return index === total - 1 ? 8 : 0;
+                pointRadius:3
             },
 
-            pointHoverRadius: function(context){
+            {
+                label:'Predicted Price',
 
-                const index = context.dataIndex;
+                data:
+                {{ predicted_chart | tojson | safe }},
 
-                const total = context.dataset.data.length;
+                borderColor:'#4ade80',
 
-                return index === total - 1 ? 10 : 0;
-            },
+                backgroundColor:
+                'rgba(74,222,128,0.1)',
 
-            pointBackgroundColor: '#ffffff',
+                borderWidth:4,
 
-            pointBorderColor: '#4ade80',
+                borderDash:[10,5],
 
-            pointBorderWidth: 3
-        }
+                tension:0.4,
 
-    ]
-},
+                fill:false,
+
+                pointRadius:function(context){
+
+                    const index =
+                    context.dataIndex;
+
+                    const total =
+                    context.dataset.data.length;
+
+                    return index === total - 1
+                    ? 8
+                    : 0;
+                },
+
+                pointBackgroundColor:'#ffffff',
+
+                pointBorderColor:'#4ade80',
+
+                pointBorderWidth:3
+            }
+        ]
+    },
 
     options:{
 
@@ -359,7 +472,9 @@ new Chart(ctx, {
         plugins:{
 
             legend:{
+
                 labels:{
+
                     color:'white'
                 }
             }
@@ -368,30 +483,37 @@ new Chart(ctx, {
         scales:{
 
             x:{
+
                 ticks:{
+
                     color:'#94a3b8'
                 },
 
                 grid:{
-                    color:'rgba(255,255,255,0.05)'
+
+                    color:
+                    'rgba(255,255,255,0.05)'
                 }
             },
 
             y:{
+
                 ticks:{
+
                     color:'#94a3b8'
                 },
 
                 grid:{
-                    color:'rgba(255,255,255,0.05)'
+
+                    color:
+                    'rgba(255,255,255,0.05)'
                 }
             }
         }
-    },
-
-    plugins:[glowPlugin]
+    }
 });
 
 </script>
+
 </body>
 </html>

@@ -1,5 +1,23 @@
-from flask import Flask, render_template, request
+from flask import (
+    Flask,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    flash,
+    session,
+    send_file
+)
+
+from flask_sqlalchemy import SQLAlchemy
+
+from werkzeug.security import (
+    generate_password_hash,
+    check_password_hash
+)
+
 from tensorflow.keras.models import load_model
+
 from preprocess import preprocess_data
 
 import pandas as pd
@@ -12,26 +30,70 @@ from sklearn.metrics import (
     mean_squared_error
 )
 
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer
+)
+
+from reportlab.lib.styles import getSampleStyleSheet
+
+
 # =========================
 # CREATE APP
 # =========================
 app = Flask(__name__)
 
+app.secret_key = "stock_secret_key"
+
 # =========================
-# LOAD DATA
+# DATABASE CONFIG
+# =========================
+app.config['SQLALCHEMY_DATABASE_URI'] = \
+'mysql+pymysql://root:@localhost/stock_prediction_db'
+
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+
+# =========================
+# USER MODEL
+# =========================
+class User(db.Model):
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    username = db.Column(
+        db.String(100),
+        nullable=False
+    )
+
+    email = db.Column(
+        db.String(100),
+        unique=True,
+        nullable=False
+    )
+
+    password = db.Column(
+        db.String(200),
+        nullable=False
+    )
+
+# =========================
+# LOAD DATASET
 # =========================
 data = pd.read_csv("data.csv")
 
 data['Date'] = pd.to_datetime(data['Date'])
 
-# =========================
-# DATE RANGE
-# =========================
 MIN_DATE = data['Date'].min().strftime("%Y-%m-%d")
 MAX_DATE = data['Date'].max().strftime("%Y-%m-%d")
 
 # =========================
-# PREPROCESS
+# PREPROCESS DATA
 # =========================
 X, y, scaler = preprocess_data(data)
 
@@ -54,40 +116,114 @@ model = load_model("model.h5")
 print("MODEL LOADED SUCCESSFULLY ✅")
 
 # =========================
-# MODEL EVALUATION
+# GLOBAL VARIABLES
 # =========================
-y_pred = model.predict(X_test, verbose=0)
-
-dummy_test = np.zeros((len(y_test), 5))
-dummy_pred = np.zeros((len(y_pred), 5))
-
-dummy_test[:, 3] = y_test
-dummy_pred[:, 3] = y_pred.flatten()
-
-y_test_inv = scaler.inverse_transform(dummy_test)[:, 3]
-y_pred_inv = scaler.inverse_transform(dummy_pred)[:, 3]
-
-mae_global = mean_absolute_error(
-    y_test_inv,
-    y_pred_inv
-)
-
-rmse_global = np.sqrt(
-    mean_squared_error(
-        y_test_inv,
-        y_pred_inv
-    )
-)
+mae_global = 0
+rmse_global = 0
 
 # =========================
-# HOME ROUTE
+# SIGNUP
+# =========================
+@app.route("/signup", methods=["GET", "POST"])
+def signup():
+
+    if request.method == "POST":
+
+        username = request.form.get("username")
+
+        email = request.form.get("email")
+
+        password = request.form.get("password")
+
+        existing_user = User.query.filter_by(
+            email=email
+        ).first()
+
+        if existing_user:
+
+            flash("Email already exists")
+
+            return redirect(url_for("signup"))
+
+        hashed_password = generate_password_hash(password)
+
+        new_user = User(
+
+            username=username,
+
+            email=email,
+
+            password=hashed_password
+        )
+
+        db.session.add(new_user)
+
+        db.session.commit()
+
+        flash("Account created successfully")
+
+        return redirect(url_for("login"))
+
+    return render_template("signup.html")
+
+# =========================
+# LOGIN
+# =========================
+@app.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "POST":
+
+        email = request.form.get("email")
+
+        password = request.form.get("password")
+
+        user = User.query.filter_by(
+            email=email
+        ).first()
+
+        if user and check_password_hash(
+            user.password,
+            password
+        ):
+
+            session['username'] = user.username
+
+            flash("Login successful")
+
+            return redirect(url_for("index"))
+
+        else:
+
+            flash("Invalid email or password")
+
+    return render_template("login.html")
+
+# =========================
+# LOGOUT
+# =========================
+@app.route("/logout")
+def logout():
+
+    session.pop("username", None)
+
+    flash("Logged out successfully")
+
+    return redirect(url_for("login"))
+
+# =========================
+# HOME
 # =========================
 @app.route("/", methods=["GET", "POST"])
 def index():
 
-    # =========================
-    # DEFAULT VALUES
-    # =========================
+    global mae_global
+    global rmse_global
+
+    if 'username' not in session:
+
+        return redirect(url_for("login"))
+
     selected_date = MAX_DATE
 
     actual_price = 0.00
@@ -99,8 +235,8 @@ def index():
 
     confidence = 0.0
 
-    mae = round(mae_global, 2)
-    rmse = round(rmse_global, 2)
+    mae = 0.0
+    rmse = 0.0
 
     chart_labels = []
     actual_chart = []
@@ -109,24 +245,58 @@ def index():
     error = None
 
     # =========================
-    # WHEN USER PREDICTS
+    # MODEL EVALUATION
+    # =========================
+    try:
+
+        y_pred = model.predict(X_test, verbose=0)
+
+        y_test_reshaped = y_test.reshape(-1, 1)
+
+        y_test_inv = scaler.inverse_transform(
+            y_test_reshaped
+        )
+
+        y_pred_inv = scaler.inverse_transform(
+            y_pred
+        )
+
+        mae = float(
+            mean_absolute_error(
+                y_test_inv,
+                y_pred_inv
+            )
+        )
+
+        rmse = float(
+            np.sqrt(
+                mean_squared_error(
+                    y_test_inv,
+                    y_pred_inv
+                )
+            )
+        )
+
+        mae_global = mae
+        rmse_global = rmse
+
+    except Exception as e:
+
+        error = str(e)
+
+    # =========================
+    # PREDICT
     # =========================
     if request.method == "POST":
 
         try:
 
-            # =========================
-            # GET DATE
-            # =========================
             selected_date = request.form.get("date")
 
             selected_dt = pd.to_datetime(
                 selected_date
             )
 
-            # =========================
-            # FIND DATE ROW
-            # =========================
             matched_rows = data[
                 data['Date'] == selected_dt
             ]
@@ -139,62 +309,41 @@ def index():
 
                 row_index = matched_rows.index[0]
 
-                # =========================
-                # NEED 60 DAYS
-                # =========================
                 if row_index < 60:
 
-                    error = "Need at least 60 previous days"
+                    error = "Not enough previous data"
 
                 else:
 
-                    # =========================
-                    # ACTUAL PRICE
-                    # =========================
                     actual_price = float(
                         data.iloc[row_index]['Close']
                     )
 
-                    # =========================
-                    # GET LAST 60 DAYS
-                    # =========================
                     sequence_data = data.iloc[
                         row_index-60:row_index
-                    ][
-                        ['Open',
-                         'High',
-                         'Low',
-                         'Close',
-                         'Volume']
-                    ]
+                    ][[
+                        'Open',
+                        'High',
+                        'Low',
+                        'Close',
+                        'Volume'
+                    ]]
 
-                    # =========================
-                    # SCALE
-                    # =========================
                     scaled_sequence = scaler.transform(
                         sequence_data
                     )
 
-                    # =========================
-                    # RESHAPE
-                    # =========================
                     current_input = scaled_sequence.reshape(
                         1,
                         60,
                         5
                     )
 
-                    # =========================
-                    # PREDICT
-                    # =========================
                     pred = model.predict(
                         current_input,
                         verbose=0
                     )[0][0]
 
-                    # =========================
-                    # INVERSE TRANSFORM
-                    # =========================
                     dummy = np.zeros((1, 5))
 
                     dummy[0, 3] = pred
@@ -207,35 +356,29 @@ def index():
                         predicted_price
                     )
 
-                    # =========================
-                    # NEXT DATE
-                    # =========================
                     next_date = (
                         selected_dt + timedelta(days=1)
                     ).strftime("%Y-%m-%d")
 
-                    # =========================
-                    # TREND
-                    # =========================
                     if predicted_price > actual_price:
 
-                        trend = "BULLISH"
+                        trend = "BULLISH 📈"
 
                     else:
 
-                        trend = "BEARISH"
+                        trend = "BEARISH 📉"
 
-                    # =========================
-                    # CONFIDENCE
-                    # =========================
+                    confidence = (
+                        100 - (
+                            mae / predicted_price
+                        ) * 100
+                    )
+
                     confidence = round(
-                        (1 - (mae / predicted_price)) * 100,
+                        confidence,
                         1
                     )
 
-                    # =========================
-                    # CHART DATA
-                    # =========================
                     historical_df = data.iloc[
                         row_index-7:row_index
                     ]
@@ -250,15 +393,8 @@ def index():
                         'Close'
                     ].tolist()
 
-                    # ADD PREDICTION LABEL
-                    chart_labels.append(
-                        "Prediction"
-                    )
-
-                    # CONTINUE ACTUAL LINE
                     actual_chart.append(None)
 
-                    # PREDICTION LINE
                     predicted_chart = [None] * (
                         len(actual_chart) - 2
                     )
@@ -271,16 +407,19 @@ def index():
                         predicted_price
                     )
 
+                    chart_labels.append(
+                        "Prediction"
+                    )
+
         except Exception as e:
 
             error = str(e)
 
-    # =========================
-    # RETURN TEMPLATE
-    # =========================
     return render_template(
 
         "index.html",
+
+        username=session.get("username"),
 
         selected_date=selected_date,
 
@@ -310,6 +449,65 @@ def index():
 
         error=error
     )
+
+# =========================
+# DOWNLOAD REPORT
+# =========================
+@app.route("/download-report")
+def download_report():
+
+    pdf_file = "prediction_report.pdf"
+
+    doc = SimpleDocTemplate(pdf_file)
+
+    styles = getSampleStyleSheet()
+
+    elements = []
+
+    title = Paragraph(
+        "StockPrice AI Prediction Report",
+        styles['Title']
+    )
+
+    elements.append(title)
+
+    elements.append(Spacer(1, 20))
+
+    report_lines = [
+
+        f"MAE: ${round(mae_global,2)}",
+
+        f"RMSE: ${round(rmse_global,2)}",
+
+        "Model: LSTM Deep Learning",
+
+        "Stock: AAPL"
+    ]
+
+    for line in report_lines:
+
+        paragraph = Paragraph(
+            line,
+            styles['BodyText']
+        )
+
+        elements.append(paragraph)
+
+        elements.append(Spacer(1, 12))
+
+    doc.build(elements)
+
+    return send_file(
+        pdf_file,
+        as_attachment=True
+    )
+
+# =========================
+# CREATE TABLES
+# =========================
+with app.app_context():
+
+    db.create_all()
 
 # =========================
 # RUN APP

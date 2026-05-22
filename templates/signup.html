@@ -8,7 +8,7 @@
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<title>Login | StockPrice AI</title>
+<title>Signup | StockPrice AI</title>
 
 <link rel="stylesheet"
 href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -41,9 +41,9 @@ body{
     );
 }
 
-.login-container{
+.signup-container{
 
-    width:420px;
+    width:430px;
 
     background:rgba(15,23,42,0.95);
 
@@ -52,9 +52,6 @@ body{
     border-radius:30px;
 
     padding:45px;
-
-    box-shadow:
-    0 0 40px rgba(56,189,248,0.08);
 }
 
 .logo{
@@ -71,16 +68,16 @@ body{
     font-size:34px;
 }
 
+.logo i{
+
+    color:#38bdf8;
+}
+
 .logo p{
 
     color:#94a3b8;
 
     margin-top:10px;
-}
-
-.logo i{
-
-    color:#38bdf8;
 }
 
 .input-box{
@@ -120,7 +117,7 @@ body{
     border:1px solid rgba(255,255,255,0.08);
 }
 
-.login-btn{
+.signup-btn{
 
     width:100%;
 
@@ -133,8 +130,8 @@ body{
     background:
     linear-gradient(
         135deg,
-        #38bdf8,
-        #0ea5e9
+        #22c55e,
+        #16a34a
     );
 
     color:white;
@@ -146,13 +143,6 @@ body{
     cursor:pointer;
 
     margin-top:10px;
-
-    transition:0.3s;
-}
-
-.login-btn:hover{
-
-    transform:translateY(-3px);
 }
 
 .bottom-text{
@@ -194,7 +184,7 @@ body{
 
 <body>
 
-<div class="login-container">
+<div class="signup-container">
 
     <div class="logo">
 
@@ -204,12 +194,11 @@ body{
         </h1>
 
         <p>
-            Login to continue
+            Create your account
         </p>
 
     </div>
 
-    <!-- FLASH MESSAGE -->
     {% with messages = get_flashed_messages() %}
 
         {% if messages %}
@@ -228,12 +217,24 @@ body{
 
         <div class="input-box">
 
+            <label>Username</label>
+
+            <input
+            type="text"
+            name="username"
+            placeholder="Enter username"
+            required>
+
+        </div>
+
+        <div class="input-box">
+
             <label>Email</label>
 
             <input
             type="email"
             name="email"
-            placeholder="Enter your email"
+            placeholder="Enter email"
             required>
 
         </div>
@@ -245,16 +246,16 @@ body{
             <input
             type="password"
             name="password"
-            placeholder="Enter your password"
+            placeholder="Enter password"
             required>
 
         </div>
 
         <button
         type="submit"
-        class="login-btn">
+        class="signup-btn">
 
-            Login
+            Create Account
 
         </button>
 
@@ -262,11 +263,11 @@ body{
 
     <div class="bottom-text">
 
-        Don't have account?
+        Already have account?
 
-        <a href="/signup">
+        <a href="/login">
 
-            Create Account
+            Login
 
         </a>
 
