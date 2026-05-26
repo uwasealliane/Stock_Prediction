@@ -737,6 +737,24 @@
     letter-spacing: 0.5px;
 }
 
+
+.flash-message{
+
+    background:#2d1b2e;
+
+    color:#ff6b6b;
+
+    padding:15px;
+
+    border-radius:12px;
+
+    margin-bottom:20px;
+
+    text-align:center;
+
+    font-size:18px;
+}
+
 .auth-btn:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px -5px rgba(37, 99, 235, 0.5);
@@ -837,3 +855,5 @@ html{
 
     scroll-behavior:smooth;
 }
+
+

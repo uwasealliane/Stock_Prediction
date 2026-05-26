@@ -209,20 +209,23 @@ body{
 
     </div>
 
-    <!-- FLASH MESSAGE -->
-    {% with messages = get_flashed_messages() %}
+   {% with messages = get_flashed_messages() %}
 
-        {% if messages %}
+    {% if messages %}
+
+        {% for message in messages %}
 
             <div class="flash-message">
 
-                {{ messages[0] }}
+                {{ message }}
 
             </div>
 
-        {% endif %}
+        {% endfor %}
 
-    {% endwith %}
+    {% endif %}
+
+{% endwith %}
 
     <form method="POST">
 

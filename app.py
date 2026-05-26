@@ -82,6 +82,11 @@ class User(db.Model):
         nullable=False
     )
 
+    # ADMIN ROLE
+    is_admin = db.Column(
+        db.Boolean,
+        default=False
+    )
 # =========================
 # LOAD DATASET
 # =========================
@@ -172,6 +177,14 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
+    if 'username' in session:
+
+        if session.get("is_admin"):
+
+            return redirect(url_for("admin_dashboard"))
+
+        return redirect(url_for("index"))
+
     if request.method == "POST":
 
         email = request.form.get("email")
@@ -187,10 +200,22 @@ def login():
             password
         ):
 
+            # CLEAR FLASHES
+            session.pop('_flashes', None)
+
+            # SAVE SESSION
             session['username'] = user.username
 
-            flash("Login successful")
+            session['is_admin'] = user.is_admin
 
+            # ADMIN LOGIN
+            if user.is_admin:
+
+                return redirect(
+                    url_for("admin_dashboard")
+                )
+
+            # NORMAL USER
             return redirect(url_for("index"))
 
         else:
@@ -220,16 +245,32 @@ def index():
     global mae_global
     global rmse_global
 
+    # =========================
+    # LOGIN PROTECTION
+    # =========================
     if 'username' not in session:
 
         return redirect(url_for("login"))
 
-    selected_date = MAX_DATE
+    # =========================
+    # DEFAULT VALUES
+    # =========================
+    error = None
 
-    actual_price = 0.0
+    # USE LATEST DATE AUTOMATICALLY
+    latest_row = data.iloc[-1]
+
+    selected_dt = latest_row['Date']
+
+    selected_date = selected_dt.strftime("%Y-%m-%d")
+
+    actual_price = float(latest_row['Close'])
+
     predicted_price = 0.0
 
-    next_date = "None"
+    next_date = (
+        selected_dt + timedelta(days=1)
+    ).strftime("%Y-%m-%d")
 
     trend = "WAITING"
 
@@ -242,21 +283,28 @@ def index():
     actual_chart = []
     predicted_chart = []
 
-    error = None
-
-    # =========================
-    # MODEL EVALUATION
-    # =========================
     try:
 
-        y_pred = model.predict(X_test, verbose=0)
+        # =========================
+        # MODEL EVALUATION
+        # =========================
+        y_pred = model.predict(
+            X_test,
+            verbose=0
+        )
 
         # CREATE DUMMY ARRAYS
-        y_test_dummy = np.zeros((len(y_test), 5))
-        y_pred_dummy = np.zeros((len(y_pred), 5))
+        y_test_dummy = np.zeros(
+            (len(y_test), 5)
+        )
 
-        # PUT CLOSE PRICE
+        y_pred_dummy = np.zeros(
+            (len(y_pred), 5)
+        )
+
+        # PUT CLOSE COLUMN
         y_test_dummy[:, 3] = y_test
+
         y_pred_dummy[:, 3] = y_pred.flatten()
 
         # INVERSE TRANSFORM
@@ -268,7 +316,9 @@ def index():
             y_pred_dummy
         )[:, 3]
 
+        # =========================
         # METRICS
+        # =========================
         mae = float(
             mean_absolute_error(
                 y_test_inv,
@@ -288,12 +338,116 @@ def index():
         mae_global = mae
         rmse_global = rmse
 
+        # =========================
+        # DEFAULT PREDICTION
+        # =========================
+        row_index = len(data) - 1
+
+        sequence_data = data.iloc[
+            row_index-60:row_index
+        ][[
+            'Open',
+            'High',
+            'Low',
+            'Close',
+            'Volume'
+        ]]
+
+        scaled_sequence = scaler.transform(
+            sequence_data
+        )
+
+        current_input = scaled_sequence.reshape(
+            1,
+            60,
+            5
+        )
+
+        pred = model.predict(
+            current_input,
+            verbose=0
+        )[0][0]
+
+        # =========================
+        # INVERSE TRANSFORM
+        # =========================
+        dummy_array = np.zeros((1, 5))
+
+        dummy_array[0, 3] = pred
+
+        predicted_price = scaler.inverse_transform(
+            dummy_array
+        )[0][3]
+
+        predicted_price = float(
+            predicted_price
+        )
+
+        # =========================
+        # TREND
+        # =========================
+        if predicted_price > actual_price:
+
+            trend = "BULLISH 📈"
+
+        else:
+
+            trend = "BEARISH 📉"
+
+        # =========================
+        # CONFIDENCE
+        # =========================
+        confidence = max(
+            0,
+            round(
+                100 - (
+                    mae / predicted_price
+                ) * 100,
+                1
+            )
+        )
+
+        # =========================
+        # CHART DATA
+        # =========================
+        historical_df = data.iloc[
+            row_index-7:row_index
+        ]
+
+        chart_labels = historical_df[
+            'Date'
+        ].dt.strftime(
+            "%d %b"
+        ).tolist()
+
+        actual_chart = historical_df[
+            'Close'
+        ].tolist()
+
+        actual_chart.append(None)
+
+        predicted_chart = [None] * (
+            len(actual_chart) - 2
+        )
+
+        predicted_chart.append(
+            actual_chart[-2]
+        )
+
+        predicted_chart.append(
+            predicted_price
+        )
+
+        chart_labels.append(
+            "Prediction"
+        )
+
     except Exception as e:
 
         error = str(e)
 
     # =========================
-    # PREDICT
+    # USER PREDICTION
     # =========================
     if request.method == "POST":
 
@@ -323,16 +477,10 @@ def index():
 
                 else:
 
-                    # =========================
-                    # ACTUAL PRICE
-                    # =========================
                     actual_price = float(
                         data.iloc[row_index]['Close']
                     )
 
-                    # =========================
-                    # LAST 60 DAYS
-                    # =========================
                     sequence_data = data.iloc[
                         row_index-60:row_index
                     ][[
@@ -358,9 +506,6 @@ def index():
                         verbose=0
                     )[0][0]
 
-                    # =========================
-                    # INVERSE TRANSFORM
-                    # =========================
                     dummy_array = np.zeros((1, 5))
 
                     dummy_array[0, 3] = pred
@@ -373,16 +518,10 @@ def index():
                         predicted_price
                     )
 
-                    # =========================
-                    # NEXT DATE
-                    # =========================
                     next_date = (
                         selected_dt + timedelta(days=1)
                     ).strftime("%Y-%m-%d")
 
-                    # =========================
-                    # TREND
-                    # =========================
                     if predicted_price > actual_price:
 
                         trend = "BULLISH 📈"
@@ -391,9 +530,6 @@ def index():
 
                         trend = "BEARISH 📉"
 
-                    # =========================
-                    # CONFIDENCE
-                    # =========================
                     confidence = max(
                         0,
                         round(
@@ -404,9 +540,6 @@ def index():
                         )
                     )
 
-                    # =========================
-                    # CHART
-                    # =========================
                     historical_df = data.iloc[
                         row_index-7:row_index
                     ]
@@ -477,7 +610,6 @@ def index():
 
         error=error
     )
-
 # =========================
 # DOWNLOAD REPORT
 # =========================
@@ -536,6 +668,61 @@ def download_report():
 with app.app_context():
 
     db.create_all()
+
+    # =========================
+# CREATE DEFAULT ADMIN
+# =========================
+with app.app_context():
+
+    admin = User.query.filter_by(
+        email="admin@gmail.com"
+    ).first()
+
+    if not admin:
+
+        admin_user = User(
+
+            username="Admin",
+
+            email="admin@gmail.com",
+
+            password=generate_password_hash(
+                "admin123"
+            ),
+
+            is_admin=True
+        )
+
+        db.session.add(admin_user)
+
+        db.session.commit()
+
+        print("ADMIN CREATED SUCCESSFULLY ✅")
+
+        # =========================
+# ADMIN DASHBOARD
+# =========================
+@app.route("/admin")
+def admin_dashboard():
+
+    # CHECK LOGIN
+    if 'username' not in session:
+
+        return redirect(url_for("login"))
+
+    # CHECK ADMIN
+    if not session.get("is_admin"):
+
+        flash("Access denied")
+
+        return redirect(url_for("index"))
+
+    return render_template(
+
+        "admin.html",
+
+        username=session.get("username")
+    )
 
 # =========================
 # RUN APP
