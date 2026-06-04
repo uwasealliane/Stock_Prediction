@@ -1,3 +1,5 @@
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM, Dense
 from flask import (
     Flask,
     render_template,
@@ -851,6 +853,45 @@ def add_user():
     db.session.commit()
 
     return redirect(url_for("admin_dashboard"))
+
+@app.route("/retrain-model", methods=["POST"])
+def retrain_model():
+
+    global model
+
+    try:
+
+        X, y, scaler = preprocess_data(data)
+
+        split = int(len(X) * 0.8)
+
+        X_train = X[:split]
+        y_train = y[:split]
+
+        model.fit(
+            X_train,
+            y_train,
+            epochs=5,
+            batch_size=32,
+            verbose=1
+        )
+
+        model.save("model.h5")
+
+        flash(
+            "Model retrained successfully!",
+            "success"
+        )
+
+    except Exception as e:
+
+        flash(
+            f"Retraining failed: {e}",
+            "danger"
+        )
+
+    return redirect(url_for("admin_dashboard"))
+
 # =========================
 # RUN APP
 # =========================

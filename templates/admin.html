@@ -88,107 +88,130 @@
             </div>
         </div>
 
-        <!-- User Management Section -->
-        <div class="section-card">
-            <div class="section-header">
-                <h2><i class="fas fa-users"></i> User Management</h2>
-                <div class="section-actions">
-                    <span class="badge">All users</span>
-                </div>
-            </div>
+       <!-- User Management Section -->
+<div class="section-card">
+    <div class="section-header">
+        <h2><i class="fas fa-users"></i> User Management</h2>
+        <div class="section-actions">
+            <span class="badge">All users</span>
+        </div>
+    </div>
+    
+    <!-- Search and Filter Row -->
+    <div class="user-management-controls">
+        <div class="search-filter-group">
             <div class="search-bar">
                 <i class="fas fa-search"></i>
-                <input type="text" placeholder="Enter & search ID...">
+                <input type="text" id="searchUserInput" placeholder="Search user by name or email...">
             </div>
-            <div class="table-wrapper">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Username</th>
-                            <th>Email</th>
-                            <th>Status</th>
-                            <th>Predictions</th>
-                            <th>Last Login</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-{% for user in users %}
-<tr>
+            <button class="btn-secondary" id="searchUserBtn">
+                <i class="fas fa-search"></i> Search
+            </button>
+            <button class="btn-secondary" id="refreshUserBtn">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
 
-    <td>{{ user.id }}</td>
+    <div class="table-wrapper">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Status</th>
+                    <th>Predictions</th>
+                    <th>Last Login</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userTableBody">
+                {% for user in users %}
+                <tr id="user-row-{{ user.id }}">
+                    <td>{{ user.id }}</td>
+                    <td>{{ user.username }}</td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% if user.is_admin %}
+                            <span class="status admin">👑 Admin</span>
+                        {% else %}
+                            <span class="status {% if user.status == 'Active' %}active{% else %}suspended{% endif %}">
+                                {{ user.status if user.status else 'Active' }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.total_predictions if user.total_predictions else 0 }}</td>
+                    <td>{{ user.last_login if user.last_login else 'Never' }}</td>
+                    <td class="action-buttons">
+                        {% if not user.is_admin %}
+                            <button class="btn-icon suspend-btn" onclick="toggleUserStatus({{ user.id }}, '{{ user.status if user.status else 'Active' }}')" title="Suspend/Activate">
+                                <i class="fas fa-ban"></i>
+                            </button>
+                            <button class="btn-icon delete-btn" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="Delete User">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        {% else %}
+                            <span class="protected-badge" title="Admin cannot be deleted">
+                                <i class="fas fa-shield-alt"></i> Protected
+                            </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-    <td>{{ user.username }}</td>
-
-    <td>{{ user.email }}</td>
-
-    <td>
-        {% if user.is_admin %}
-            Admin
-        {% else %}
-            User
-        {% endif %}
-    </td>
-
-    <td>{{ user.predictions }}</td>
-
-    <td>Online</td>
-
-</tr>
-{% endfor %}
-</tbody>
-       </table>
-            </div>
-            <div class="table-footer">
-                <div class="button-group">
-                    <form action="{{ url_for('search_user') }}"
-      method="GET">
-
-    <input type="text"
-           name="keyword"
-           placeholder="Search user">
-
-    <button type="submit"
-            class="btn-secondary">
-
-        <i class="fas fa-search"></i>
-        Search
-
-    </button>
-
-</form>
-                   <button onclick="window.location.reload()"
-        class="btn-secondary">
-
-    <i class="fas fa-sync-alt"></i>
-    Refresh
-
-</button>
+    <!-- Add User Form -->
+    <div class="add-user-section">
+        <div class="add-user-header">
+            <i class="fas fa-user-plus"></i>
+            <h3>Add New User</h3>
+        </div>
+        <div class="add-user-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <input type="text" id="newUsername" placeholder="Username" required>
                 </div>
-                <form action="{{ url_for('add_user') }}" method="POST">
-
-    <input type="text"
-           name="username"
-           placeholder="Username"
-           required>
-
-    <input type="email"
-           name="email"
-           placeholder="Email"
-           required>
-
-    <input type="password"
-           name="password"
-           placeholder="Password"
-           required>
-
-    <button type="submit" class="btn-primary">
-        <i class="fas fa-plus"></i> Add User
-    </button>
-
-</form>
+                <div class="form-group">
+                    <input type="email" id="newEmail" placeholder="Email" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="newPassword" placeholder="Password" required>
+                </div>
+                <div class="form-group">
+                    <select id="newUserRole">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <button class="btn-primary add-user-btn" id="addUserBtn">
+                    <i class="fas fa-plus"></i> Add User
+                </button>
             </div>
         </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h3>Confirm Delete</h3>
+                <span class="modal-close">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete user <strong id="deleteUserName"></strong>?</p>
+                <p class="warning-text">This action cannot be undone. All prediction history for this user will also be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelDeleteBtn">Cancel</button>
+                <button class="btn-danger" id="confirmDeleteBtn">Delete User</button>
+            </div>
+        </div>
+    </div>
+</div>
 
         <!-- Two Column Layout -->
         <div class="two-columns">
@@ -215,8 +238,20 @@
                         <span class="metric-value">1,250 rows</span>
                     </div>
                 </div>
-                <button class="btn-primary full-width"><i class="fas fa-rotate-right"></i> Retrain AI Model</button>
-            </div>
+<form action="{{ url_for('retrain_model') }}"
+      method="POST">
+
+    <button type="submit"
+            class="btn-primary full-width">
+
+        <i class="fas fa-rotate-right"></i>
+        Retrain AI Model
+
+    </button>
+
+</form>
+
+               </div>
 
             <!-- Right Column: Prediction History -->
             <div class="section-card">
@@ -266,55 +301,121 @@
                 </div>
             </div>
         </div>
+<!-- Improved Dataset Management Section - Single Clean Card -->
+<div class="section-card dataset-management-card">
+    <div class="section-header">
+        <h2><i class="fas fa-database"></i> Dataset Management</h2>
+        <div class="section-actions">
+            <span class="badge"><i class="fas fa-check-circle"></i> Active</span>
+        </div>
+    </div>
 
-        <!-- Dataset Management + Data Upload Row -->
-        <div class="two-columns">
-            <!-- Left: Dataset Management -->
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fas fa-database"></i> Dataset Management</h2>
-                </div>
-                <div class="dataset-info">
-                    <div class="dataset-item">
-                        <i class="fas fa-file-csv"></i>
-                        <span>Uploaded Dataset: <strong>data.csv</strong></span>
-                    </div>
-                    <button class="btn-outline full-width"><i class="fas fa-upload"></i> Upload New Dataset</button>
-                    <div class="dataset-stats">
-                        <div class="stat-row"><span>Uploaded Dataset:</span><strong>April 1, 2026</strong></div>
-                        <div class="stat-row"><span>Dataset Size:</span><strong>1,250 rows</strong></div>
-                        <div class="stat-row"><span>Last Updated:</span><strong>April 15</strong></div>
-                    </div>
+    <div class="dataset-layout">
+        <!-- Left Column - Dataset Info -->
+        <div class="dataset-info-panel">
+            <div class="dataset-header-icon">
+                <i class="fas fa-file-csv"></i>
+                <div class="dataset-title">
+                    <h3>Current Dataset</h3>
+                    <p>data.csv</p>
                 </div>
             </div>
 
-            <!-- Right: Data Upload with Table -->
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fas fa-upload"></i> Data Upload</h2>
-                </div>
-                <div class="table-wrapper small">
-                    <table class="data-table compact">
-                        <thead><tr><th>Date</th><th>Actual Price</th><th>Predicted Price</th><th>Trend</th></tr></thead>
-                        <tbody>
-                            <tr><td>2026-04-11</td><td>$191.45</td><td>$193.88</td><td><span class="trend up">BULLISH</span></td></tr>
-                            <tr><td>2026-04-10</td><td>$190.21</td><td>$192.15</td><td><span class="trend up">BULLISH</span></td></tr>
-                            <tr><td>2026-04-09</td><td>$192.72</td><td>$191.44</td><td><span class="trend down">BEARISH</span></td></tr>
-                            <tr><td>2026-04-08</td><td>$195.28</td><td>$193.17</td><td><span class="trend down">BEARISH</span></td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="upload-area">
-                    <div class="file-input-wrapper">
-                        <input type="file" id="fileUpload" accept=".csv">
-                        <label for="fileUpload" class="btn-outline full-width"><i class="fas fa-folder-open"></i> Choose File</label>
+            <div class="dataset-stats-grid">
+                <div class="dataset-stat">
+                    <div class="stat-icon"><i class="fas fa-table-rows"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Rows</span>
+                        <span class="stat-number">1,250</span>
                     </div>
-                    <p class="upload-note">Accepted: Csv file | Max Size: 10MB</p>
+                </div>
+                <div class="dataset-stat">
+                    <div class="stat-icon"><i class="fas fa-columns"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Columns</span>
+                        <span class="stat-number">6</span>
+                    </div>
+                </div>
+                <div class="dataset-stat">
+                    <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Date Range</span>
+                        <span class="stat-number">2020-2025</span>
+                    </div>
+                </div>
+                <div class="dataset-stat">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-details">
+                        <span class="stat-label">Last Updated</span>
+                        <span class="stat-number">April 15, 2026</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="dataset-divider"></div>
+
+        <!-- Right Column - Data Upload -->
+        <div class="data-upload-panel">
+            <div class="upload-header">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <h3>Upload New Dataset</h3>
+            </div>
+
+            <div class="upload-box" id="uploadBox">
+                <div class="upload-icon">
+                    <i class="fas fa-file-import"></i>
+                </div>
+                <div class="upload-text">
+                    <span>Drag & drop your CSV file here</span>
+                    <small>or click to browse</small>
+                </div>
+                <input type="file" id="datasetFile" accept=".csv" hidden>
+                <button class="btn-browse" id="browseDatasetBtn">
+                    <i class="fas fa-folder-open"></i> Browse Files
+                </button>
+            </div>
+
+            <div class="file-info-preview" id="filePreview" style="display: none;">
+                <div class="preview-icon">
+                    <i class="fas fa-file-csv"></i>
+                </div>
+                <div class="preview-details">
+                    <span class="preview-name" id="previewFileName"></span>
+                    <span class="preview-size" id="previewFileSize"></span>
+                </div>
+                <button class="preview-clear" id="clearFileBtn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <div class="upload-note">
+                <i class="fas fa-info-circle"></i>
+                Accepted: CSV file | Max Size: 10MB
+            </div>
+
+            <div class="upload-actions">
+                <button class="btn-upload" id="uploadDatasetBtn" disabled>
+                    <i class="fas fa-upload"></i> Upload Dataset
+                </button>
+                <button class="btn-refresh-dataset" id="refreshDatasetBtn">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+
+            <div class="upload-status" id="uploadStatus" style="display: none;">
+                <div class="status-icon success">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="status-message-text">
+                    <strong>Upload successful!</strong>
+                    <span>Dataset has been updated</span>
                 </div>
             </div>
         </div>
     </div>
-
+</div>
     <script>
         // Update time display
         function updateTime() {
@@ -329,6 +430,418 @@
         }
         updateTime();
         setInterval(updateTime, 60000);
+
+    // Dataset Upload Functionality
+    const datasetFile = document.getElementById('datasetFile');
+    const browseBtn = document.getElementById('browseDatasetBtn');
+    const uploadBox = document.getElementById('uploadBox');
+    const filePreview = document.getElementById('filePreview');
+    const previewFileName = document.getElementById('previewFileName');
+    const previewFileSize = document.getElementById('previewFileSize');
+    const clearFileBtn = document.getElementById('clearFileBtn');
+    const uploadBtn = document.getElementById('uploadDatasetBtn');
+    const refreshBtn = document.getElementById('refreshDatasetBtn');
+    const uploadStatus = document.getElementById('uploadStatus');
+    let selectedFile = null;
+
+    // Browse button click
+    browseBtn.addEventListener('click', () => {
+        datasetFile.click();
+    });
+
+    // Upload box click
+    uploadBox.addEventListener('click', (e) => {
+        if (e.target === uploadBox || e.target.closest('.upload-text') || e.target.closest('.upload-icon')) {
+            datasetFile.click();
+        }
+    });
+
+    // Drag and drop
+    uploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadBox.style.borderColor = '#38bdf8';
+        uploadBox.style.background = 'rgba(56, 189, 248, 0.08)';
+    });
+
+    uploadBox.addEventListener('dragleave', () => {
+        uploadBox.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        uploadBox.style.background = 'rgba(0, 0, 0, 0.3)';
+    });
+
+    uploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadBox.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+        uploadBox.style.background = 'rgba(0, 0, 0, 0.3)';
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileSelect(files[0]);
+        }
+    });
+
+    // File input change
+    datasetFile.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+
+    function handleFileSelect(file) {
+        if (!file.name.endsWith('.csv')) {
+            showUploadStatus('error', 'Invalid file type', 'Please select a CSV file');
+            return;
+        }
+
+        if (file.size > 10 * 1024 * 1024) {
+            showUploadStatus('error', 'File too large', 'Maximum file size is 10MB');
+            return;
+        }
+
+        selectedFile = file;
+        
+        let sizeText = file.size < 1024 * 1024 
+            ? (file.size / 1024).toFixed(2) + ' KB'
+            : (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+        
+        previewFileName.textContent = file.name;
+        previewFileSize.textContent = sizeText;
+        
+        uploadBox.style.display = 'none';
+        filePreview.style.display = 'flex';
+        uploadBtn.disabled = false;
+        uploadStatus.style.display = 'none';
+    }
+
+    clearFileBtn.addEventListener('click', () => {
+        selectedFile = null;
+        datasetFile.value = '';
+        uploadBox.style.display = 'flex';
+        filePreview.style.display = 'none';
+        uploadBtn.disabled = true;
+        uploadStatus.style.display = 'none';
+    });
+
+    uploadBtn.addEventListener('click', () => {
+        if (!selectedFile) return;
+        
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+        
+        setTimeout(() => {
+            showUploadStatus('success', 'Upload successful!', `${selectedFile.name} is now ready for AI training`);
+            
+            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload Dataset';
+            uploadBtn.disabled = false;
+            
+            selectedFile = null;
+            datasetFile.value = '';
+            uploadBox.style.display = 'flex';
+            filePreview.style.display = 'none';
+        }, 2000);
+    });
+
+    refreshBtn.addEventListener('click', () => {
+        refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+        refreshBtn.disabled = true;
+        
+        setTimeout(() => {
+            showUploadStatus('success', 'Dataset refreshed!', 'Latest statistics loaded');
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+            refreshBtn.disabled = false;
+        }, 1500);
+    });
+
+    function showUploadStatus(type, title, message) {
+        uploadStatus.style.display = 'flex';
+        const icon = uploadStatus.querySelector('.status-icon');
+        const titleEl = uploadStatus.querySelector('.status-message-text strong');
+        const msgEl = uploadStatus.querySelector('.status-message-text span');
+        
+        if (type === 'success') {
+            icon.innerHTML = '<i class="fas fa-check-circle"></i>';
+            icon.className = 'status-icon success';
+        } else {
+            icon.innerHTML = '<i class="fas fa-exclamation-circle"></i>';
+            icon.className = 'status-icon error';
+        }
+        
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        
+        setTimeout(() => {
+            uploadStatus.style.display = 'none';
+        }, 5000);
+    }
+// ============================================
+// USER MANAGEMENT FUNCTIONS
+// ============================================
+
+let userIdToDelete = null;
+
+// Search User Function
+function searchUsers() {
+    const searchTerm = document.getElementById('searchUserInput').value.toLowerCase();
+    const rows = document.querySelectorAll('#userTableBody tr');
+    
+    rows.forEach(row => {
+        const username = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+        const email = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+        
+        if (username.includes(searchTerm) || email.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Refresh User List
+function refreshUserList() {
+    const refreshBtn = document.getElementById('refreshUserBtn');
+    const originalText = refreshBtn.innerHTML;
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    refreshBtn.disabled = true;
+    
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+}
+
+// Delete User Function
+function deleteUser(userId, username) {
+    userIdToDelete = userId;
+    document.getElementById('deleteUserName').textContent = username;
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+
+// Confirm Delete
+function confirmDelete() {
+    if (!userIdToDelete) return;
+    
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    confirmBtn.disabled = true;
+    
+    // Send delete request to backend
+    fetch(`/delete-user/${userIdToDelete}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove row from table
+            const row = document.getElementById(`user-row-${userIdToDelete}`);
+            if (row) row.remove();
+            
+            // Show success message
+            showToast('success', data.message);
+            
+            // Close modal
+            closeModal();
+        } else {
+            showToast('error', data.error || 'Failed to delete user');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An error occurred while deleting the user');
+    })
+    .finally(() => {
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+        userIdToDelete = null;
+    });
+}
+
+// Toggle User Status (Suspend/Activate)
+function toggleUserStatus(userId, currentStatus) {
+    const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+    
+    fetch(`/toggle-user/${userId}`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update status in table
+            const row = document.getElementById(`user-row-${userId}`);
+            if (row) {
+                const statusCell = row.querySelector('td:nth-child(4)');
+                const newStatusText = newStatus === 'Active' ? 'Active' : 'Suspended';
+                const statusClass = newStatus === 'Active' ? 'active' : 'suspended';
+                statusCell.innerHTML = `<span class="status ${statusClass}">${newStatusText}</span>`;
+                
+                // Update the button's onclick attribute
+                const actionCell = row.querySelector('td:last-child');
+                const suspendBtn = actionCell.querySelector('.suspend-btn');
+                if (suspendBtn) {
+                    suspendBtn.setAttribute('onclick', `toggleUserStatus(${userId}, '${newStatus}')`);
+                }
+            }
+            showToast('success', `User ${newStatus.toLowerCase()} successfully`);
+        } else {
+            showToast('error', data.error || 'Failed to update user status');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An error occurred');
+    });
+}
+
+// Add New User
+function addNewUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const email = document.getElementById('newEmail').value.trim();
+    const password = document.getElementById('newPassword').value;
+    const role = document.getElementById('newUserRole').value;
+    
+    if (!username || !email || !password) {
+        showToast('error', 'Please fill all fields');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showToast('error', 'Password must be at least 6 characters');
+        return;
+    }
+    
+    const addBtn = document.getElementById('addUserBtn');
+    const originalText = addBtn.innerHTML;
+    addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+    addBtn.disabled = true;
+    
+    fetch('/add-user', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: username,
+            email: email,
+            password: password,
+            is_admin: role === 'admin'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', 'User added successfully');
+            // Clear form
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newEmail').value = '';
+            document.getElementById('newPassword').value = '';
+            // Reload after 1 second
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast('error', data.error || 'Failed to add user');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('error', 'An error occurred');
+    })
+    .finally(() => {
+        addBtn.innerHTML = originalText;
+        addBtn.disabled = false;
+    });
+}
+
+// Show Toast Notification
+function showToast(type, message) {
+    // Check if toast container exists
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Close Modal
+function closeModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    userIdToDelete = null;
+}
+
+// Event Listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Search button
+    const searchBtn = document.getElementById('searchUserBtn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchUsers);
+    }
+    
+    // Search input - real-time search
+    const searchInput = document.getElementById('searchUserInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', searchUsers);
+    }
+    
+    // Refresh button
+    const refreshBtn = document.getElementById('refreshUserBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', refreshUserList);
+    }
+    
+    // Add user button
+    const addUserBtn = document.getElementById('addUserBtn');
+    if (addUserBtn) {
+        addUserBtn.addEventListener('click', addNewUser);
+    }
+    
+    // Modal close buttons
+    const closeModalBtn = document.querySelector('.modal-close');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeModal);
+    }
+    
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    if (cancelDeleteBtn) {
+        cancelDeleteBtn.addEventListener('click', closeModal);
+    }
+    
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', confirmDelete);
+    }
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('deleteModal');
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+});
+
+// Enter key press for search
+document.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && document.activeElement === document.getElementById('searchUserInput')) {
+        searchUsers();
+    }
+});
+
     </script>
 </body>
 </html>
