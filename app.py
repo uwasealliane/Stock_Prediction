@@ -82,10 +82,47 @@ class User(db.Model):
         nullable=False
     )
 
+    
+
     # ADMIN ROLE
     is_admin = db.Column(
         db.Boolean,
         default=False
+    )
+# =========================
+# PREDICTION MODEL
+# =========================
+class Prediction(db.Model):
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True
+    )
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user.id')
+    )
+
+    stock = db.Column(
+        db.String(50)
+    )
+
+    actual_price = db.Column(
+        db.Float
+    )
+
+    predicted_price = db.Column(
+        db.Float
+    )
+
+    trend = db.Column(
+        db.String(50)
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        default=db.func.now()
     )
 # =========================
 # LOAD DATASET
@@ -177,18 +214,11 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
-    if 'username' in session:
-
-        if session.get("is_admin"):
-
-            return redirect(url_for("admin_dashboard"))
-
-        return redirect(url_for("index"))
-
+    # REMOVE the auto-redirect - let users always see login page
+    # Only redirect after successful POST
     if request.method == "POST":
 
         email = request.form.get("email")
-
         password = request.form.get("password")
 
         user = User.query.filter_by(
@@ -205,25 +235,28 @@ def login():
 
             # SAVE SESSION
             session['username'] = user.username
-
+            session['user_id'] = user.id
             session['is_admin'] = user.is_admin
 
             # ADMIN LOGIN
             if user.is_admin:
-
-                return redirect(
-                    url_for("admin_dashboard")
-                )
+                flash(f"Welcome Admin {user.username}!", "success")
+                return redirect(url_for("admin_dashboard"))
 
             # NORMAL USER
+            flash(f"Welcome back {user.username}!", "success")
             return redirect(url_for("index"))
 
         else:
+            flash("Invalid email or password", "danger")
 
-            flash("Invalid email or password")
+    # If user is already logged in, show dashboard instead of login page
+    if 'username' in session:
+        if session.get("is_admin"):
+            return redirect(url_for("admin_dashboard"))
+        return redirect(url_for("index"))
 
     return render_template("login.html")
-
 # =========================
 # LOGOUT
 # =========================
@@ -394,6 +427,25 @@ def index():
 
             trend = "BEARISH 📉"
 
+
+        # =========================
+        # SAVE PREDICTION
+        # =========================
+        user = User.query.filter_by(
+            username=session['username']
+        ).first()
+
+        new_prediction = Prediction(
+            user_id=user.id,
+            stock="AAPL",
+            actual_price=actual_price,
+            predicted_price=predicted_price,
+            trend=trend
+        )
+
+        db.session.add(new_prediction)
+        db.session.commit()
+
         # =========================
         # CONFIDENCE
         # =========================
@@ -406,6 +458,7 @@ def index():
                 1
             )
         )
+      
 
         # =========================
         # CHART DATA
@@ -539,6 +592,8 @@ def index():
                             1
                         )
                     )
+
+                    
 
                     historical_df = data.iloc[
                         row_index-7:row_index
@@ -674,8 +729,10 @@ with app.app_context():
 # =========================
 with app.app_context():
 
+    db.create_all()
+
     admin = User.query.filter_by(
-        email="admin@gmail.com"
+        email="alliane@gmail.com"
     ).first()
 
     if not admin:
@@ -684,13 +741,14 @@ with app.app_context():
 
             username="Admin",
 
-            email="admin@gmail.com",
+            email="alliane@gmail.com",
 
             password=generate_password_hash(
                 "admin123"
             ),
 
-            is_admin=True
+            is_admin=True,
+
         )
 
         db.session.add(admin_user)
@@ -705,25 +763,94 @@ with app.app_context():
 @app.route("/admin")
 def admin_dashboard():
 
-    # CHECK LOGIN
     if 'username' not in session:
-
         return redirect(url_for("login"))
 
-    # CHECK ADMIN
     if not session.get("is_admin"):
-
         flash("Access denied")
-
         return redirect(url_for("index"))
 
+    total_users = User.query.count()
+
+    total_predictions = Prediction.query.count()
+
+    predictions = Prediction.query.order_by(
+        Prediction.created_at.desc()
+    ).all()
+
+    users = User.query.all()
+
+    user_data = []
+
+    for user in users:
+
+        prediction_count = Prediction.query.filter_by(
+            user_id=user.id
+        ).count()
+
+        user_data.append({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "is_admin": user.is_admin,
+            "predictions": prediction_count
+        })
+
     return render_template(
-
         "admin.html",
-
-        username=session.get("username")
+        username=session.get("username"),
+        total_users=total_users,
+        total_predictions=total_predictions,
+        users=user_data,
+        predictions=predictions
     )
 
+@app.route("/search-user")
+def search_user():
+
+    keyword = request.args.get("keyword", "")
+
+    users = User.query.filter(
+        User.username.like(f"%{keyword}%")
+    ).all()
+
+    predictions = Prediction.query.all()
+
+    total_users = User.query.count()
+
+    total_predictions = Prediction.query.count()
+
+    return render_template(
+        "admin.html",
+        username=session.get("username"),
+        users=users,
+        predictions=predictions,
+        total_users=total_users,
+        total_predictions=total_predictions
+    )
+
+@app.route("/add-user", methods=["POST"])
+def add_user():
+
+    username = request.form["username"]
+
+    email = request.form["email"]
+
+    password = generate_password_hash(
+        request.form["password"]
+    )
+
+    user = User(
+        username=username,
+        email=email,
+        password=password
+    )
+
+    db.session.add(user)
+
+    db.session.commit()
+
+    return redirect(url_for("admin_dashboard"))
 # =========================
 # RUN APP
 # =========================

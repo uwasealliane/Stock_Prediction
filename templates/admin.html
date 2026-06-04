@@ -20,7 +20,9 @@
             <div class="header-right">
                 <div class="welcome-text">
                     <i class="fas fa-user-shield"></i>
-                    <span>Welcome, Admin</span>
+                    <span>
+                   Welcome, {{ username }}
+                     </span>
                 </div>
                 <div class="time-display" id="timeDisplay">
                     <i class="far fa-clock"></i>
@@ -46,7 +48,9 @@
                 </div>
                 <div class="stat-info">
                     <h3>Total Users</h3>
-                    <div class="stat-value">254</div>
+                    <div class="stat-value">
+                      {{ total_users }}
+                         </div>
                     <p>Active Users</p>
                 </div>
             </div>
@@ -56,7 +60,9 @@
                 </div>
                 <div class="stat-info">
                     <h3>Total Predictions</h3>
-                    <div class="stat-value">1,125</div>
+                <div class="stat-value">
+                {{ total_predictions }}
+                      </div>
                     <p>Predictions Made</p>
                 </div>
             </div>
@@ -107,22 +113,80 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td>1</td><td>Alliance</td><td>Alliance@email.com</td><td><span class="status active">Active</span></td><td>91</td><td>04/12/2026</td></tr>
-                        <tr><td>2</td><td>Uwase</td><td>Uwase@email.com</td><td><span class="status active">Active</span></td><td>91</td><td>04/12/2026</td></tr>
-                        <tr><td>3</td><td>David</td><td>David@email.com</td><td><span class="status active">Active</span></td><td>91</td><td>04/12/2026</td></tr>
-                        <tr><td>4</td><td>Lisa</td><td>Lisa@email.com</td><td><span class="status active">Active</span></td><td>29</td><td>04/12/2026</td></tr>
-                        <tr><td>5</td><td>Alex</td><td>Alex@email.com</td><td><span class="status suspended">Suspended</span></td><td>91</td><td>04/12/2026</td></tr>
-                        <tr><td>6</td><td>Maria</td><td>Maria@email.com</td><td><span class="status active">Active</span></td><td>26</td><td>04/12/2026</td></tr>
-                        <tr><td>7</td><td>John</td><td>John@email.com</td><td><span class="status active">Active</span></td><td>16</td><td>04/12/2026</td></tr>
-                    </tbody>
-                </table>
+{% for user in users %}
+<tr>
+
+    <td>{{ user.id }}</td>
+
+    <td>{{ user.username }}</td>
+
+    <td>{{ user.email }}</td>
+
+    <td>
+        {% if user.is_admin %}
+            Admin
+        {% else %}
+            User
+        {% endif %}
+    </td>
+
+    <td>{{ user.predictions }}</td>
+
+    <td>Online</td>
+
+</tr>
+{% endfor %}
+</tbody>
+       </table>
             </div>
             <div class="table-footer">
                 <div class="button-group">
-                    <button class="btn-secondary"><i class="fas fa-search"></i> Search</button>
-                    <button class="btn-secondary"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    <form action="{{ url_for('search_user') }}"
+      method="GET">
+
+    <input type="text"
+           name="keyword"
+           placeholder="Search user">
+
+    <button type="submit"
+            class="btn-secondary">
+
+        <i class="fas fa-search"></i>
+        Search
+
+    </button>
+
+</form>
+                   <button onclick="window.location.reload()"
+        class="btn-secondary">
+
+    <i class="fas fa-sync-alt"></i>
+    Refresh
+
+</button>
                 </div>
-                <button class="btn-primary"><i class="fas fa-plus"></i> Add User</button>
+                <form action="{{ url_for('add_user') }}" method="POST">
+
+    <input type="text"
+           name="username"
+           placeholder="Username"
+           required>
+
+    <input type="email"
+           name="email"
+           placeholder="Email"
+           required>
+
+    <input type="password"
+           name="password"
+           placeholder="Password"
+           required>
+
+    <button type="submit" class="btn-primary">
+        <i class="fas fa-plus"></i> Add User
+    </button>
+
+</form>
             </div>
         </div>
 
@@ -164,13 +228,37 @@
                         <thead>
                             <tr><th>User</th><th>Stock</th><th>Selected Date</th><th>Actual Price</th><th>Predicted Price</th><th>Trend</th></tr>
                         </thead>
-                        <tbody>
-                            <tr><td>Alliance</td><td>AAPL - Apple Inc.</td><td>2026-04-11</td><td>$191.85</td><td>$193.88</td><td><span class="trend up">📈 5.2%</span></td></tr>
-                            <tr><td>David</td><td>AAPL - Apple Inc.</td><td>2026-04-10</td><td>$192.15</td><td>$194.88</td><td><span class="trend up">📈 5.7%</span></td></tr>
-                            <tr><td>Lisa</td><td>AAPL - Apple Inc.</td><td>2026-04-09</td><td>$192.72</td><td>$191.44</td><td><span class="trend down">📉 9.9%</span></td></tr>
-                            <tr><td>Alex</td><td>AAPL - Apple Inc.</td><td>2026-04-08</td><td>$195.28</td><td>$193.17</td><td><span class="trend down">📉 8.6%</span></td></tr>
-                            <tr><td>Maria</td><td>AAPL - Apple Inc.</td><td>2026-04-07</td><td>$193.17</td><td>$196.88</td><td><span class="trend up">📈 9.6%</span></td></tr>
-                        </tbody>
+                      <tbody>
+
+{% for p in predictions %}
+
+<tr>
+
+<td>
+
+{% for user in users %}
+{% if user.id == p.user_id %}
+{{ user.username }}
+{% endif %}
+{% endfor %}
+
+</td>
+
+<td>{{ p.stock }}</td>
+
+<td>{{ p.selected_date }}</td>
+
+<td>${{ p.actual_price }}</td>
+
+<td>${{ p.predicted_price }}</td>
+
+<td>{{ p.trend }}</td>
+
+</tr>
+
+{% endfor %}
+
+</tbody>
                     </table>
                 </div>
                 <div class="view-all">
