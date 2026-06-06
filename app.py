@@ -1,5 +1,9 @@
+
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
+
+from flask import jsonify, request, session
+from werkzeug.security import generate_password_hash
 from flask import (
     Flask,
     render_template,
@@ -61,6 +65,8 @@ db = SQLAlchemy(app)
 # =========================
 # USER MODEL
 # =========================
+from datetime import datetime
+
 class User(db.Model):
 
     id = db.Column(
@@ -84,6 +90,15 @@ class User(db.Model):
         nullable=False
     )
 
+    is_admin = db.Column(
+        db.Boolean,
+        default=False
+    )
+
+    last_login = db.Column(
+        db.DateTime,
+        nullable=True
+    )
     
 
     # ADMIN ROLE
@@ -126,6 +141,10 @@ class Prediction(db.Model):
         db.DateTime,
         default=db.func.now()
     )
+
+    selected_date = db.Column(
+    db.String(20)
+)
 # =========================
 # LOAD DATASET
 # =========================
@@ -216,9 +235,8 @@ def signup():
 @app.route("/login", methods=["GET", "POST"])
 def login():
 
-    # REMOVE the auto-redirect - let users always see login page
-    # Only redirect after successful POST
     if request.method == "POST":
+
 
         email = request.form.get("email")
         password = request.form.get("password")
@@ -232,44 +250,63 @@ def login():
             password
         ):
 
-            # CLEAR FLASHES
+            # Update last login
+            user.last_login = db.func.now()
+            db.session.commit()
+
+            # Clear flash messages
             session.pop('_flashes', None)
 
-            # SAVE SESSION
+            # Save session
             session['username'] = user.username
             session['user_id'] = user.id
             session['is_admin'] = user.is_admin
 
-            # ADMIN LOGIN
+            # Admin
             if user.is_admin:
-                flash(f"Welcome Admin {user.username}!", "success")
-                return redirect(url_for("admin_dashboard"))
+                flash(
+                    f"Welcome Admin {user.username}!",
+                    "success"
+                )
+                return redirect(
+                    url_for("admin_dashboard")
+                )
 
-            # NORMAL USER
-            flash(f"Welcome back {user.username}!", "success")
-            return redirect(url_for("index"))
+            # Normal user
+            flash(
+                f"Welcome back {user.username}!",
+                "success"
+            )
+
+            return redirect(
+                url_for("index")
+            )
 
         else:
-            flash("Invalid email or password", "danger")
 
-    # If user is already logged in, show dashboard instead of login page
+            flash(
+                "Invalid email or password",
+                "danger"
+            )
+
     if 'username' in session:
+
         if session.get("is_admin"):
-            return redirect(url_for("admin_dashboard"))
-        return redirect(url_for("index"))
+            return redirect(
+                url_for("admin_dashboard")
+            )
+
+        return redirect(
+            url_for("index")
+        )
 
     return render_template("login.html")
-# =========================
 # LOGOUT
 # =========================
-@app.route("/logout")
+@app.route('/logout')
 def logout():
-
-    session.pop("username", None)
-
-    flash("Logged out successfully")
-
-    return redirect(url_for("login"))
+    session.clear()
+    return redirect(url_for('login'))
 
 # =========================
 # HOME PAGE
@@ -759,9 +796,43 @@ with app.app_context():
 
         print("ADMIN CREATED SUCCESSFULLY ✅")
 
+        @app.route('/admin')
+        def admin_dashboard():
+         return render_template('admin_dashboard.html')
+
+
+@app.route('/admin/users')
+def admin_users():
+    users = User.query.all()
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/admin/predictions')
+def admin_predictions():
+    predictions = Prediction.query.order_by(
+        Prediction.created_at.desc()
+    ).all()
+
+    return render_template(
+        'admin_predictions.html',
+        predictions=predictions
+    )
+
+
+@app.route('/admin/dataset')
+def admin_dataset():
+    return render_template('admin_dataset.html')
+
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.clear()
+    return redirect(url_for('login'))
+
         # =========================
 # ADMIN DASHBOARD
 # =========================
+
 @app.route("/admin")
 def admin_dashboard():
 
@@ -777,8 +848,8 @@ def admin_dashboard():
     total_predictions = Prediction.query.count()
 
     predictions = Prediction.query.order_by(
-        Prediction.created_at.desc()
-    ).all()
+    Prediction.id.desc()
+    ).limit(10).all()
 
     users = User.query.all()
 
@@ -791,11 +862,21 @@ def admin_dashboard():
         ).count()
 
         user_data.append({
+
             "id": user.id,
+
             "username": user.username,
+
             "email": user.email,
+
             "is_admin": user.is_admin,
-            "predictions": prediction_count
+
+            "predictions": prediction_count,
+
+            "last_login":
+                user.last_login.strftime("%Y-%m-%d %H:%M:%S")
+                if user.last_login else "Never"
+
         })
 
     return render_template(
@@ -831,28 +912,57 @@ def search_user():
         total_predictions=total_predictions
     )
 
-@app.route("/add-user", methods=["POST"])
+@app.route('/add-user', methods=['POST'])
 def add_user():
 
-    username = request.form["username"]
+    if not session.get('is_admin'):
+        return jsonify({
+            "success": False,
+            "error": "Unauthorized"
+        })
 
-    email = request.form["email"]
+    data = request.get_json()
 
-    password = generate_password_hash(
-        request.form["password"]
-    )
+    username = data.get("username")
+    email = data.get("email")
+    password = data.get("password")
+    is_admin = data.get("is_admin", False)
 
-    user = User(
+    # Check empty fields
+    if not username or not email or not password:
+        return jsonify({
+            "success": False,
+            "error": "All fields are required"
+        })
+
+    # Check existing user
+    existing_user = User.query.filter(
+        (User.email == email) |
+        (User.username == username)
+    ).first()
+
+    if existing_user:
+        return jsonify({
+            "success": False,
+            "error": "User already exists"
+        })
+
+    new_user = User(
         username=username,
         email=email,
-        password=password
+        password=generate_password_hash(password),
+        is_admin=is_admin,
+        status="Active"
     )
 
-    db.session.add(user)
-
+    db.session.add(new_user)
     db.session.commit()
 
-    return redirect(url_for("admin_dashboard"))
+    return jsonify({
+        "success": True,
+        "message": "User added successfully"
+    })
+
 
 @app.route("/retrain-model", methods=["POST"])
 def retrain_model():
@@ -891,6 +1001,131 @@ def retrain_model():
         )
 
     return redirect(url_for("admin_dashboard"))
+
+# =========================
+# DELETE SINGLE PREDICTION RECORD
+# =========================
+@app.route("/delete-prediction/<int:prediction_id>", methods=["DELETE"])
+def delete_prediction(prediction_id):
+
+    if not session.get("is_admin"):
+        return jsonify({
+            "success": False,
+            "error": "Unauthorized"
+        })
+
+    prediction = Prediction.query.get(prediction_id)
+
+    if not prediction:
+        return jsonify({
+            "success": False,
+            "error": "Prediction not found"
+        })
+
+    db.session.delete(prediction)
+    db.session.commit()
+
+    return jsonify({
+        "success": True
+    })
+
+# =========================
+# CLEAR ALL PREDICTION HISTORY
+# =========================
+@app.route("/clear-prediction-history", methods=["DELETE"])
+def clear_prediction_history():
+
+    if not session.get("is_admin"):
+        return jsonify({
+            "success": False,
+            "error": "Unauthorized"
+        })
+
+    Prediction.query.delete()
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True
+    })
+
+
+# =========================
+# GET PREDICTION STATS (AJAX)
+# =========================
+@app.route("/api/prediction-stats")
+def prediction_stats():
+    if not session.get("is_admin"):
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    total = Prediction.query.count()
+    bullish = Prediction.query.filter(Prediction.trend.like("%BULLISH%")).count()
+    bearish = Prediction.query.filter(Prediction.trend.like("%BEARISH%")).count()
+    
+    return jsonify({
+        "total": total,
+        "bullish": bullish,
+        "bearish": bearish
+    })
+
+@app.route("/toggle-user/<int:user_id>")
+def toggle_user(user_id):
+
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({
+            "success": False,
+            "error": "User not found"
+        })
+
+    if user.is_admin:
+        return jsonify({
+            "success": False,
+            "error": "Cannot modify admin"
+        })
+
+    user.status = (
+        "Suspended"
+        if user.status == "Active"
+        else "Active"
+    )
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True
+    })
+
+@app.route("/delete-user/<int:user_id>")
+def delete_user(user_id):
+
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({
+            "success": False,
+            "error": "User not found"
+        })
+
+    if user.is_admin:
+        return jsonify({
+            "success": False,
+            "error": "Admin cannot be deleted"
+        })
+
+    Prediction.query.filter_by(
+        user_id=user.id
+    ).delete()
+
+    db.session.delete(user)
+
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "message": "User deleted successfully"
+    })
 
 # =========================
 # RUN APP

@@ -32,13 +32,29 @@
         </div>
 
         <!-- Navigation -->
-        <nav class="admin-nav">
-            <a href="#" class="active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
-            <a href="#"><i class="fas fa-users"></i> Users</a>
-            <a href="#"><i class="fas fa-chart-line"></i> Predictions</a>
-            <a href="#"><i class="fas fa-database"></i> Dataset</a>
-            <a href="#"><i class="fas fa-sign-out-alt"></i> Logout</a>
-        </nav>
+     <nav class="admin-nav">
+
+    <a href="{{ url_for('admin_dashboard') }}" class="active">
+        <i class="fas fa-tachometer-alt"></i> Dashboard
+    </a>
+
+    <a href="#user-management">
+        <i class="fas fa-users"></i> Users
+    </a>
+
+    <a href="#prediction-history">
+        <i class="fas fa-chart-line"></i> Predictions
+    </a>
+
+    <a href="#dataset-management">
+        <i class="fas fa-database"></i> Dataset
+    </a>
+
+    <a href="{{ url_for('logout') }}">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </a>
+
+</nav>
 
         <!-- Stats Cards Row -->
         <div class="stats-row">
@@ -89,7 +105,7 @@
         </div>
 
        <!-- User Management Section -->
-<div class="section-card">
+<div class="section-card" id="user-management">
     <div class="section-header">
         <h2><i class="fas fa-users"></i> User Management</h2>
         <div class="section-actions">
@@ -141,7 +157,7 @@
                             </span>
                         {% endif %}
                     </td>
-                    <td>{{ user.total_predictions if user.total_predictions else 0 }}</td>
+                    <td>{{ user.predictions }}</td>
                     <td>{{ user.last_login if user.last_login else 'Never' }}</td>
                     <td class="action-buttons">
                         {% if not user.is_admin %}
@@ -186,9 +202,14 @@
                         <option value="admin">Admin</option>
                     </select>
                 </div>
-                <button class="btn-primary add-user-btn" id="addUserBtn">
-                    <i class="fas fa-plus"></i> Add User
-                </button>
+               <button
+    class="btn-primary add-user-btn"
+    id="addUserBtn">
+
+    <i class="fas fa-plus"></i>
+    Add User
+
+</button>
             </div>
         </div>
     </div>
@@ -254,55 +275,139 @@
                </div>
 
             <!-- Right Column: Prediction History -->
-            <div class="section-card">
-                <div class="section-header">
-                    <h2><i class="fas fa-history"></i> Prediction History</h2>
-                </div>
-                <div class="table-wrapper">
-                    <table class="data-table compact">
-                        <thead>
-                            <tr><th>User</th><th>Stock</th><th>Selected Date</th><th>Actual Price</th><th>Predicted Price</th><th>Trend</th></tr>
-                        </thead>
-                      <tbody>
-
-{% for p in predictions %}
-
-<tr>
-
-<td>
-
-{% for user in users %}
-{% if user.id == p.user_id %}
-{{ user.username }}
-{% endif %}
-{% endfor %}
-
-</td>
-
-<td>{{ p.stock }}</td>
-
-<td>{{ p.selected_date }}</td>
-
-<td>${{ p.actual_price }}</td>
-
-<td>${{ p.predicted_price }}</td>
-
-<td>{{ p.trend }}</td>
-
-</tr>
-
-{% endfor %}
-
-</tbody>
-                    </table>
-                </div>
-                <div class="view-all">
-                    <a href="#">View All <i class="fas fa-arrow-right"></i></a>
-                </div>
+         <div class="section-card" id="prediction-history">
+    <div class="section-header">
+        <h2><i class="fas fa-history"></i> Prediction History</h2>
+        <div class="section-actions">
+            <button class="btn-clear-history" id="clearAllHistoryBtn" onclick="clearAllHistory()">
+                <i class="fas fa-trash-alt"></i> Clear All History
+            </button>
+        </div>
+    </div>
+    
+    <div class="prediction-history-controls">
+        <div class="history-filter-group">
+            <div class="search-bar small">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchHistoryInput" placeholder="Search by user or stock...">
             </div>
+            <select id="filterTrendSelect" class="filter-select">
+                <option value="all">All Trends</option>
+                <option value="BULLISH">📈 BULLISH</option>
+                <option value="BEARISH">📉 BEARISH</option>
+            </select>
+            <button class="btn-secondary" id="refreshHistoryBtn">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table class="data-table compact">
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Stock</th>
+                    <th>Selected Date</th>
+                    <th>Actual Price</th>
+                    <th>Predicted Price</th>
+                    <th>Trend</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="predictionHistoryBody">
+                {% for p in predictions %}
+                <tr id="history-row-{{ p.id }}">
+                    <td>
+                        {% for user in users %}
+                            {% if user.id == p.user_id %}
+                                {{ user.username }}
+                            {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>{{ p.stock }}</td>
+                    <td>{{ p.selected_date }}</td>
+                    <td>${{ "%.2f"|format(p.actual_price) }}</td>
+                    <td>${{ "%.2f"|format(p.predicted_price) }}</td>
+                    <td>
+                        {% if "BULLISH" in p.trend %}
+                            <span class="trend up">📈 BULLISH</span>
+                        {% else %}
+                            <span class="trend down">📉 BEARISH</span>
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <button class="btn-icon delete-history-btn" onclick="deleteHistoryRecord({{ p.id }})" title="Delete this record">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    {% if predictions|length == 0 %}
+    <div class="empty-state">
+        <i class="fas fa-chart-line"></i>
+        <p>No prediction history yet</p>
+        <span>Users will appear here after making predictions</span>
+    </div>
+    {% endif %}
+    
+    <div class="history-footer">
+        <div class="history-stats">
+            <span><i class="fas fa-chart-simple"></i> Total Records: <strong id="totalRecordsCount">{{ predictions|length }}</strong></span>
+            <span><i class="fas fa-arrow-up"></i> Bullish: <strong id="bullishCount">0</strong></span>
+            <span><i class="fas fa-arrow-down"></i> Bearish: <strong id="bearishCount">0</strong></span>
+        </div>
+        <div class="view-all">
+            <a href="#" onclick="loadAllHistory()">View All <i class="fas fa-arrow-right"></i></a>
+        </div>
+    </div>
+</div>
+
+<!-- Delete History Record Confirmation Modal -->
+<div id="deleteHistoryModal" class="modal">
+    <div class="modal-content small">
+        <div class="modal-header">
+            <i class="fas fa-trash-alt"></i>
+            <h3>Delete Prediction Record</h3>
+            <span class="modal-close" onclick="closeHistoryModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete this prediction record?</p>
+            <p class="warning-text">This action cannot be undone.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeHistoryModal()">Cancel</button>
+            <button class="btn-danger" id="confirmHistoryDeleteBtn">Delete Record</button>
+        </div>
+    </div>
+</div>
+
+<!-- Clear All History Confirmation Modal -->
+<div id="clearAllModal" class="modal">
+    <div class="modal-content small">
+        <div class="modal-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>Clear All Prediction History</h3>
+            <span class="modal-close" onclick="closeClearAllModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p>Are you sure you want to delete <strong>ALL prediction records</strong>?</p>
+            <p class="warning-text">This action cannot be undone. All prediction history will be permanently deleted.</p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeClearAllModal()">Cancel</button>
+            <button class="btn-danger" id="confirmClearAllBtn">Clear All History</button>
+        </div>
+    </div>
+</div>
         </div>
 <!-- Improved Dataset Management Section - Single Clean Card -->
-<div class="section-card dataset-management-card">
+<div class="section-card dataset-management-card"
+     id="dataset-management">
     <div class="section-header">
         <h2><i class="fas fa-database"></i> Dataset Management</h2>
         <div class="section-actions">
@@ -697,30 +802,35 @@ function toggleUserStatus(userId, currentStatus) {
 
 // Add New User
 function addNewUser() {
+
     const username = document.getElementById('newUsername').value.trim();
     const email = document.getElementById('newEmail').value.trim();
     const password = document.getElementById('newPassword').value;
     const role = document.getElementById('newUserRole').value;
-    
+
     if (!username || !email || !password) {
         showToast('error', 'Please fill all fields');
         return;
     }
-    
+
     if (password.length < 6) {
         showToast('error', 'Password must be at least 6 characters');
         return;
     }
-    
+
     const addBtn = document.getElementById('addUserBtn');
+
     const originalText = addBtn.innerHTML;
-    addBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
+    addBtn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Adding...';
+
     addBtn.disabled = true;
-    
+
     fetch('/add-user', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
             username: username,
@@ -731,26 +841,50 @@ function addNewUser() {
     })
     .then(response => response.json())
     .then(data => {
+
         if (data.success) {
-            showToast('success', 'User added successfully');
-            // Clear form
+
+            showToast(
+                'success',
+                'User added successfully'
+            );
+
             document.getElementById('newUsername').value = '';
             document.getElementById('newEmail').value = '';
             document.getElementById('newPassword').value = '';
-            // Reload after 1 second
-            setTimeout(() => window.location.reload(), 1000);
+            document.getElementById('newUserRole').value = 'user';
+
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+
         } else {
-            showToast('error', data.error || 'Failed to add user');
+
+            showToast(
+                'error',
+                data.error || 'Failed to add user'
+            );
+
         }
+
     })
     .catch(error => {
-        console.error('Error:', error);
-        showToast('error', 'An error occurred');
+
+        console.error(error);
+
+        showToast(
+            'error',
+            'Server error'
+        );
+
     })
     .finally(() => {
+
         addBtn.innerHTML = originalText;
         addBtn.disabled = false;
+
     });
+
 }
 
 // Show Toast Notification
@@ -840,6 +974,310 @@ document.addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && document.activeElement === document.getElementById('searchUserInput')) {
         searchUsers();
     }
+});
+
+// ============================================
+// PREDICTION HISTORY FUNCTIONS
+// ============================================
+
+let historyIdToDelete = null;
+
+// Search and Filter History
+function filterHistory() {
+    const searchTerm = document.getElementById('searchHistoryInput').value.toLowerCase();
+    const trendFilter = document.getElementById('filterTrendSelect').value;
+    const rows = document.querySelectorAll('#predictionHistoryBody tr');
+    let visibleCount = 0;
+    let bullishCount = 0;
+    let bearishCount = 0;
+    
+    rows.forEach(row => {
+        const username = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+        const stock = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+        const trendCell = row.querySelector('td:nth-child(6)');
+        const trend = trendCell?.textContent.includes('BULLISH') ? 'BULLISH' : 'BEARISH';
+        
+        let matchesSearch = username.includes(searchTerm) || stock.includes(searchTerm);
+        let matchesTrend = trendFilter === 'all' || trend === trendFilter;
+        
+        if (matchesSearch && matchesTrend) {
+            row.style.display = '';
+            visibleCount++;
+            if (trend === 'BULLISH') bullishCount++;
+            else bearishCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Update stats
+    document.getElementById('totalRecordsCount').textContent = visibleCount;
+    document.getElementById('bullishCount').textContent = bullishCount;
+    document.getElementById('bearishCount').textContent = bearishCount;
+}
+
+// Delete Single History Record
+function deleteHistoryRecord(historyId) {
+    historyIdToDelete = historyId;
+    document.getElementById('deleteHistoryModal').style.display = 'flex';
+}
+
+function confirmHistoryDelete() {
+    if (!historyIdToDelete) return;
+    
+    const confirmBtn = document.getElementById('confirmHistoryDeleteBtn');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+    confirmBtn.disabled = true;
+    
+    fetch(`/delete-prediction/${historyIdToDelete}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Remove row from table
+            const row = document.getElementById(`history-row-${historyIdToDelete}`);
+            if (row) row.remove();
+            
+            showHistoryToast('success', 'Prediction record deleted successfully');
+            
+            // Update stats
+            updateHistoryStats();
+            
+            // Close modal
+            closeHistoryModal();
+            
+            // Check if table is empty
+            const remainingRows = document.querySelectorAll('#predictionHistoryBody tr:not([style*="display: none"])').length;
+            if (remainingRows === 0) {
+                location.reload();
+            }
+        } else {
+            showHistoryToast('error', data.error || 'Failed to delete record');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showHistoryToast('error', 'An error occurred');
+    })
+    .finally(() => {
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+        historyIdToDelete = null;
+    });
+}
+
+// Clear All History
+function clearAllHistory() {
+    document.getElementById('clearAllModal').style.display = 'flex';
+}
+
+function confirmClearAllHistory() {
+    const confirmBtn = document.getElementById('confirmClearAllBtn');
+    const originalText = confirmBtn.innerHTML;
+    confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+    confirmBtn.disabled = true;
+    
+    fetch('/clear-prediction-history', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showHistoryToast('success', 'All prediction history cleared successfully');
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        } else {
+            showHistoryToast('error', data.error || 'Failed to clear history');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showHistoryToast('error', 'An error occurred');
+    })
+    .finally(() => {
+        confirmBtn.innerHTML = originalText;
+        confirmBtn.disabled = false;
+        closeClearAllModal();
+    });
+}
+
+// Update History Statistics
+function updateHistoryStats() {
+    const rows = document.querySelectorAll('#predictionHistoryBody tr');
+    let total = 0;
+    let bullish = 0;
+    let bearish = 0;
+    
+    rows.forEach(row => {
+        if (row.style.display !== 'none') {
+            total++;
+            const trendCell = row.querySelector('td:nth-child(6)');
+            if (trendCell?.textContent.includes('BULLISH')) {
+                bullish++;
+            } else {
+                bearish++;
+            }
+        }
+    });
+    
+    document.getElementById('totalRecordsCount').textContent = total;
+    document.getElementById('bullishCount').textContent = bullish;
+    document.getElementById('bearishCount').textContent = bearish;
+}
+
+// Load All History
+function loadAllHistory() {
+    const searchInput = document.getElementById('searchHistoryInput');
+    const trendSelect = document.getElementById('filterTrendSelect');
+    
+    if (searchInput) searchInput.value = '';
+    if (trendSelect) trendSelect.value = 'all';
+    
+    const rows = document.querySelectorAll('#predictionHistoryBody tr');
+    rows.forEach(row => {
+        row.style.display = '';
+    });
+    
+    updateHistoryStats();
+    showHistoryToast('info', 'Showing all prediction records');
+}
+
+// History Toast Notification
+function showHistoryToast(type, message) {
+    let toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = `toast toast-history toast-${type}`;
+    toast.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+        <span>${message}</span>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Modal Functions
+function closeHistoryModal() {
+    document.getElementById('deleteHistoryModal').style.display = 'none';
+    historyIdToDelete = null;
+}
+
+function closeClearAllModal() {
+    document.getElementById('clearAllModal').style.display = 'none';
+}
+
+// Event Listeners for History
+document.addEventListener('DOMContentLoaded', () => {
+    // Search input
+    const searchInput = document.getElementById('searchHistoryInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', filterHistory);
+    }
+    
+    // Trend filter
+    const trendFilter = document.getElementById('filterTrendSelect');
+    if (trendFilter) {
+        trendFilter.addEventListener('change', filterHistory);
+    }
+    
+    // Refresh button
+    const refreshHistoryBtn = document.getElementById('refreshHistoryBtn');
+    if (refreshHistoryBtn) {
+        refreshHistoryBtn.addEventListener('click', () => {
+            location.reload();
+        });
+    }
+    
+    // Confirm delete button
+    const confirmHistoryDeleteBtn = document.getElementById('confirmHistoryDeleteBtn');
+    if (confirmHistoryDeleteBtn) {
+        confirmHistoryDeleteBtn.addEventListener('click', confirmHistoryDelete);
+    }
+    
+    // Confirm clear all button
+    const confirmClearAllBtn = document.getElementById('confirmClearAllBtn');
+    if (confirmClearAllBtn) {
+        confirmClearAllBtn.addEventListener('click', confirmClearAllHistory);
+    }
+    
+    // Initial stats calculation
+    updateHistoryStats();
+    
+    // Close modals when clicking outside
+    window.addEventListener('click', (e) => {
+        const historyModal = document.getElementById('deleteHistoryModal');
+        const clearModal = document.getElementById('clearAllModal');
+        if (e.target === historyModal) closeHistoryModal();
+        if (e.target === clearModal) closeClearAllModal();
+    });
+});
+
+// Enter key for search
+document.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && document.activeElement === document.getElementById('searchHistoryInput')) {
+        filterHistory();
+    }
+});
+
+
+const sections = document.querySelectorAll(
+    "#dashboard-section, #users-section, #predictions-section, #dataset-section"
+);
+
+const navLinks = document.querySelectorAll(".admin-nav a");
+
+window.addEventListener("scroll", () => {
+
+    let current = "";
+
+    sections.forEach(section => {
+
+        const sectionTop = section.offsetTop - 150;
+
+        if (window.scrollY >= sectionTop) {
+            current = section.getAttribute("id");
+        }
+    });
+
+    navLinks.forEach(link => {
+
+        link.classList.remove("active");
+
+        if (
+            link.getAttribute("href") === "#" + current
+        ) {
+            link.classList.add("active");
+        }
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    document
+        .getElementById("addUserBtn")
+        .addEventListener("click", addNewUser);
+
 });
 
     </script>
