@@ -5,7 +5,11 @@ def load_data():
     # =========================
     # LOAD CSV DATASET
     # =========================
-    data = pd.read_csv("data.csv")
+    ACTIVE_DATASET = "AAPL.csv"
+
+    data = pd.read_csv(
+    f"datasets/{ACTIVE_DATASET}"
+)
 
     # Convert Date column
     data['Date'] = pd.to_datetime(data['Date'])

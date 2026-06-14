@@ -44,7 +44,8 @@ from reportlab.platypus import (
 
 from reportlab.lib.styles import getSampleStyleSheet
 
-
+mae_global = 0
+rmse_global = 0
 # =========================
 # CREATE APP
 # =========================
@@ -66,21 +67,20 @@ db = SQLAlchemy(app)
 # USER MODEL
 # =========================
 from datetime import datetime
+from datetime import datetime
 
 class User(db.Model):
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
+    id = db.Column(db.Integer, primary_key=True)
 
     username = db.Column(
-        db.String(100),
+        db.String(80),
+        unique=True,
         nullable=False
     )
 
     email = db.Column(
-        db.String(100),
+        db.String(120),
         unique=True,
         nullable=False
     )
@@ -95,17 +95,16 @@ class User(db.Model):
         default=False
     )
 
+    status = db.Column(
+        db.String(20),
+        default="Active"
+    )
+
     last_login = db.Column(
         db.DateTime,
         nullable=True
     )
-    
 
-    # ADMIN ROLE
-    is_admin = db.Column(
-        db.Boolean,
-        default=False
-    )
 # =========================
 # PREDICTION MODEL
 # =========================
@@ -145,10 +144,40 @@ class Prediction(db.Model):
     selected_date = db.Column(
     db.String(20)
 )
+    
+class Dataset(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+
+    filename = db.Column(
+        db.String(200),
+        nullable=False,
+        unique=True
+    )
+
+    is_active = db.Column(
+        db.Boolean,
+        default=False
+    )
+
+    uploaded_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow
+    )
+
+
 # =========================
 # LOAD DATASET
 # =========================
-data = pd.read_csv("data.csv")
+# =========================
+# LOAD DATASET
+# =========================
+
+ACTIVE_DATASET = "AAPL.csv"
+
+data = pd.read_csv(
+    f"datasets/{ACTIVE_DATASET}"
+)
+
 
 data['Date'] = pd.to_datetime(data['Date'])
 
@@ -313,397 +342,209 @@ def logout():
 # =========================
 @app.route("/", methods=["GET", "POST"])
 def index():
+    global mae_global, rmse_global
 
-    global mae_global
-    global rmse_global
-
-    # =========================
-    # LOGIN PROTECTION
-    # =========================
     if 'username' not in session:
-
         return redirect(url_for("login"))
 
-    # =========================
-    # DEFAULT VALUES
-    # =========================
     error = None
+    confidence = 0.0  # Initialize confidence
 
     # USE LATEST DATE AUTOMATICALLY
     latest_row = data.iloc[-1]
-
     selected_dt = latest_row['Date']
-
     selected_date = selected_dt.strftime("%Y-%m-%d")
-
     actual_price = float(latest_row['Close'])
-
     predicted_price = 0.0
-
-    next_date = (
-        selected_dt + timedelta(days=1)
-    ).strftime("%Y-%m-%d")
-
+    next_date = (selected_dt + timedelta(days=1)).strftime("%Y-%m-%d")
     trend = "WAITING"
-
-    confidence = 0.0
-
     mae = 0.0
     rmse = 0.0
 
+    current_mae = 0.0
+    current_rmse = 0.0
     chart_labels = []
     actual_chart = []
     predicted_chart = []
 
     try:
-
-        # =========================
-        # MODEL EVALUATION
-        # =========================
-        y_pred = model.predict(
-            X_test,
-            verbose=0
-        )
-
-        # CREATE DUMMY ARRAYS
-        y_test_dummy = np.zeros(
-            (len(y_test), 5)
-        )
-
-        y_pred_dummy = np.zeros(
-            (len(y_pred), 5)
-        )
-
-        # PUT CLOSE COLUMN
+        # MODEL EVALUATION (keep as is)
+        y_pred = model.predict(X_test, verbose=0)
+        y_test_dummy = np.zeros((len(y_test), 5))
+        y_pred_dummy = np.zeros((len(y_pred), 5))
         y_test_dummy[:, 3] = y_test
-
         y_pred_dummy[:, 3] = y_pred.flatten()
-
-        # INVERSE TRANSFORM
-        y_test_inv = scaler.inverse_transform(
-            y_test_dummy
-        )[:, 3]
-
-        y_pred_inv = scaler.inverse_transform(
-            y_pred_dummy
-        )[:, 3]
-
-        # =========================
-        # METRICS
-        # =========================
-        mae = float(
-            mean_absolute_error(
-                y_test_inv,
-                y_pred_inv
-            )
-        )
-
-        rmse = float(
-            np.sqrt(
-                mean_squared_error(
-                    y_test_inv,
-                    y_pred_inv
-                )
-            )
-        )
-
+        y_test_inv = scaler.inverse_transform(y_test_dummy)[:, 3]
+        y_pred_inv = scaler.inverse_transform(y_pred_dummy)[:, 3]
+        mae = float(mean_absolute_error(y_test_inv, y_pred_inv))
+        rmse = float(np.sqrt(mean_squared_error(y_test_inv, y_pred_inv)))
+        global mae_global, rmse_global
         mae_global = mae
         rmse_global = rmse
 
-        # =========================
         # DEFAULT PREDICTION
-        # =========================
         row_index = len(data) - 1
-
-        sequence_data = data.iloc[
-            row_index-60:row_index
-        ][[
-            'Open',
-            'High',
-            'Low',
-            'Close',
-            'Volume'
-        ]]
-
-        scaled_sequence = scaler.transform(
-            sequence_data
-        )
-
-        current_input = scaled_sequence.reshape(
-            1,
-            60,
-            5
-        )
-
-        pred = model.predict(
-            current_input,
-            verbose=0
-        )[0][0]
-
-        # =========================
-        # INVERSE TRANSFORM
-        # =========================
+        sequence_data = data.iloc[row_index-60:row_index][['Open', 'High', 'Low', 'Close', 'Volume']]
+        scaled_sequence = scaler.transform(sequence_data)
+        current_input = scaled_sequence.reshape(1, 60, 5)
+        pred = model.predict(current_input, verbose=0)[0][0]
         dummy_array = np.zeros((1, 5))
-
         dummy_array[0, 3] = pred
+        predicted_price = float(scaler.inverse_transform(dummy_array)[0][3])
 
-        predicted_price = scaler.inverse_transform(
-            dummy_array
-        )[0][3]
+        
 
-        predicted_price = float(
-            predicted_price
-        )
-
-        # =========================
         # TREND
-        # =========================
         if predicted_price > actual_price:
-
             trend = "BULLISH 📈"
-
         else:
-
             trend = "BEARISH 📉"
 
+        # =========================
+        # CONFIDENCE CALCULATION (NEW)
+        # =========================
+        try:
+            confidence = round(100 - abs(predicted_price - actual_price) / actual_price * 100, 1)
+            confidence = max(0, min(100, confidence))
+        except:
+            confidence = 0.0
 
         # =========================
-        # SAVE PREDICTION
+        # SAVE PREDICTION (NEW with selected_date)
         # =========================
-        user = User.query.filter_by(
-            username=session['username']
-        ).first()
+        user = User.query.filter_by(username=session['username']).first()
+        if user:
+            existing = Prediction.query.filter_by(user_id=user.id, selected_date=selected_date).first()
+            if not existing:
+                new_prediction = Prediction(
+                    user_id=user.id,
+                    stock="AAPL",
+                    actual_price=actual_price,
+                    predicted_price=predicted_price,
+                    trend=trend,
+                    selected_date=selected_date
+                )
+                db.session.add(new_prediction)
+                db.session.commit()
 
-        new_prediction = Prediction(
-            user_id=user.id,
-            stock="AAPL",
-            actual_price=actual_price,
-            predicted_price=predicted_price,
-            trend=trend
-        )
-
-        db.session.add(new_prediction)
-        db.session.commit()
-
-        # =========================
-        # CONFIDENCE
-        # =========================
-        confidence = max(
-            0,
-            round(
-                100 - (
-                    mae / predicted_price
-                ) * 100,
-                1
-            )
-        )
-      
-
-        # =========================
         # CHART DATA
-        # =========================
-        historical_df = data.iloc[
-            row_index-7:row_index
-        ]
-
-        chart_labels = historical_df[
-            'Date'
-        ].dt.strftime(
-            "%d %b"
-        ).tolist()
-
-        actual_chart = historical_df[
-            'Close'
-        ].tolist()
-
+        historical_df = data.iloc[row_index-7:row_index]
+        chart_labels = historical_df['Date'].dt.strftime("%d %b").tolist()
+        actual_chart = historical_df['Close'].tolist()
         actual_chart.append(None)
-
-        predicted_chart = [None] * (
-            len(actual_chart) - 2
-        )
-
-        predicted_chart.append(
-            actual_chart[-2]
-        )
-
-        predicted_chart.append(
-            predicted_price
-        )
-
-        chart_labels.append(
-            "Prediction"
-        )
+        predicted_chart = [None] * (len(actual_chart) - 2)
+        predicted_chart.append(actual_chart[-2])
+        predicted_chart.append(predicted_price)
+        chart_labels.append("Prediction")
 
     except Exception as e:
-
         error = str(e)
 
     # =========================
-    # USER PREDICTION
+    # USER PREDICTION (POST)
     # =========================
     if request.method == "POST":
-
         try:
-
             selected_date = request.form.get("date")
-
-            selected_dt = pd.to_datetime(
-                selected_date
-            )
-
-            matched_rows = data[
-                data['Date'] == selected_dt
-            ]
+            selected_dt = pd.to_datetime(selected_date)
+            matched_rows = data[data['Date'] == selected_dt]
 
             if len(matched_rows) == 0:
-
                 error = "Selected date not found"
-
             else:
-
                 row_index = matched_rows.index[0]
-
                 if row_index < 60:
-
                     error = "Not enough previous data"
-
                 else:
-
-                    actual_price = float(
-                        data.iloc[row_index]['Close']
-                    )
-
-                    sequence_data = data.iloc[
-                        row_index-60:row_index
-                    ][[
-                        'Open',
-                        'High',
-                        'Low',
-                        'Close',
-                        'Volume'
-                    ]]
-
-                    scaled_sequence = scaler.transform(
-                        sequence_data
-                    )
-
-                    current_input = scaled_sequence.reshape(
-                        1,
-                        60,
-                        5
-                    )
-
-                    pred = model.predict(
-                        current_input,
-                        verbose=0
-                    )[0][0]
-
+                    actual_price = float(data.iloc[row_index]['Close'])
+                    sequence_data = data.iloc[row_index-60:row_index][['Open', 'High', 'Low', 'Close', 'Volume']]
+                    scaled_sequence = scaler.transform(sequence_data)
+                    current_input = scaled_sequence.reshape(1, 60, 5)
+                    pred = model.predict(current_input, verbose=0)[0][0]
                     dummy_array = np.zeros((1, 5))
-
                     dummy_array[0, 3] = pred
+                    predicted_price = float(scaler.inverse_transform(dummy_array)[0][3])
+                    next_date = (selected_dt + timedelta(days=1)).strftime("%Y-%m-%d")
 
-                    predicted_price = scaler.inverse_transform(
-                        dummy_array
-                    )[0][3]
-
-                    predicted_price = float(
-                        predicted_price
+                    current_mae = round(
+                    abs(actual_price - predicted_price),
+                    2
                     )
 
-                    next_date = (
-                        selected_dt + timedelta(days=1)
-                    ).strftime("%Y-%m-%d")
+                    current_rmse = round(
+                    np.sqrt(
+                    (actual_price - predicted_price) ** 2
+                    ),
+                    2
+                    )
 
                     if predicted_price > actual_price:
-
                         trend = "BULLISH 📈"
-
                     else:
-
                         trend = "BEARISH 📉"
 
-                    confidence = max(
-                        0,
-                        round(
-                            100 - (
-                                mae / predicted_price
-                            ) * 100,
-                            1
-                        )
-                    )
+                    # =========================
+                    # CONFIDENCE CALCULATION (NEW)
+                    # =========================
+                    try:
+                        confidence = round(100 - abs(predicted_price - actual_price) / actual_price * 100, 1)
+                        confidence = max(0, min(100, confidence))
+                    except:
+                        confidence = 0.0
 
-                    
+                    # =========================
+                    # SAVE PREDICTION (NEW with selected_date)
+                    # =========================
+                    user = User.query.filter_by(username=session['username']).first()
+                    if user:
+                        existing = Prediction.query.filter_by(user_id=user.id, selected_date=selected_date).first()
+                        if not existing:
+                            new_prediction = Prediction(
+                                user_id=user.id,
+                                stock="AAPL",
+                                actual_price=actual_price,
+                                predicted_price=predicted_price,
+                                trend=trend,
+                                selected_date=selected_date
+                            )
+                            db.session.add(new_prediction)
+                            db.session.commit()
 
-                    historical_df = data.iloc[
-                        row_index-7:row_index
-                    ]
-
-                    chart_labels = historical_df[
-                        'Date'
-                    ].dt.strftime(
-                        "%d %b"
-                    ).tolist()
-
-                    actual_chart = historical_df[
-                        'Close'
-                    ].tolist()
-
+                    # CHART DATA
+                    historical_df = data.iloc[row_index-7:row_index]
+                    chart_labels = historical_df['Date'].dt.strftime("%d %b").tolist()
+                    actual_chart = historical_df['Close'].tolist()
                     actual_chart.append(None)
-
-                    predicted_chart = [None] * (
-                        len(actual_chart) - 2
-                    )
-
-                    predicted_chart.append(
-                        actual_chart[-2]
-                    )
-
-                    predicted_chart.append(
-                        predicted_price
-                    )
-
-                    chart_labels.append(
-                        "Prediction"
-                    )
+                    predicted_chart = [None] * (len(actual_chart) - 2)
+                    predicted_chart.append(actual_chart[-2])
+                    predicted_chart.append(predicted_price)
+                    chart_labels.append("Prediction")
 
         except Exception as e:
-
             error = str(e)
 
+            print("MAE =", mae)
+            print("RMSE =", rmse)
+
     return render_template(
-
         "index.html",
-
         username=session.get("username"),
-
         selected_date=selected_date,
-
         actual_price=actual_price,
-
         predicted_price=predicted_price,
-
         next_date=next_date,
-
         trend=trend,
-
         confidence=confidence,
-
-        mae=mae,
-
-        rmse=rmse,
-
+        mae=current_mae if request.method == "POST" else mae,
+        rmse=current_rmse if request.method == "POST" else rmse,
         min_date=MIN_DATE,
-
         max_date=MAX_DATE,
-
         chart_labels=chart_labels,
-
         actual_chart=actual_chart,
-
         predicted_chart=predicted_chart,
-
         error=error
     )
+
 # =========================
 # DOWNLOAD REPORT
 # =========================
@@ -763,6 +604,38 @@ with app.app_context():
 
     db.create_all()
 
+    datasets = [
+        "AAPL.csv",
+        "TSLA.csv",
+        "MSFT.csv",
+        "NVDA.csv"
+    ]
+
+    for file in datasets:
+
+        existing = Dataset.query.filter_by(
+            filename=file
+        ).first()
+
+        if not existing:
+
+            new_dataset = Dataset(
+                filename=file,
+                is_active=(file == "AAPL.csv")
+            )
+
+            db.session.add(new_dataset)
+
+    db.session.commit()
+
+    active_dataset = Dataset.query.filter_by(
+        is_active=True
+    ).first()
+
+    if active_dataset:
+        ACTIVE_DATASET = active_dataset.filename
+    else:
+        ACTIVE_DATASET = "AAPL.csv"
     # =========================
 # CREATE DEFAULT ADMIN
 # =========================
@@ -835,9 +708,10 @@ def admin_logout():
 
 @app.route("/admin")
 def admin_dashboard():
-
+    global mae_global, rmse_global
     if 'username' not in session:
         return redirect(url_for("login"))
+    
 
     if not session.get("is_admin"):
         flash("Access denied")
@@ -878,15 +752,55 @@ def admin_dashboard():
                 if user.last_login else "Never"
 
         })
+    import os
+
+    data = pd.read_csv(
+    f"datasets/{ACTIVE_DATASET}"
+)
+
+    dataset_rows = len(data)
+
+    dataset_columns = len(data.columns)
+
+    date_range = (
+    str(data['Date'].min())[:10]
+    + " - " +
+    str(data['Date'].max())[:10]
+    )
+
+    last_updated = datetime.fromtimestamp(
+    os.path.getmtime(
+        f"datasets/{ACTIVE_DATASET}"
+    )
+).strftime("%B %d, %Y")
+
+    print("MAE:", mae_global)
+    print("RMSE:", rmse_global)
 
     return render_template(
-        "admin.html",
-        username=session.get("username"),
-        total_users=total_users,
-        total_predictions=total_predictions,
-        users=user_data,
-        predictions=predictions
-    )
+    "admin.html",
+
+    username=session.get("username"),
+
+    total_users=total_users,
+    total_predictions=total_predictions,
+
+    users=user_data,
+    predictions=predictions,
+
+    mae=round(mae_global, 2),
+    rmse=round(rmse_global, 2),
+
+    dataset_rows=dataset_rows,
+    dataset_columns=dataset_columns,
+    date_range=date_range,
+    last_updated=last_updated,
+    datasets=datasets
+)
+
+
+
+
 
 @app.route("/search-user")
 def search_user():
@@ -919,23 +833,21 @@ def add_user():
         return jsonify({
             "success": False,
             "error": "Unauthorized"
-        })
+        }), 403
 
-    data = request.get_json()
+    data = request.get_json(force=True)
 
     username = data.get("username")
     email = data.get("email")
     password = data.get("password")
     is_admin = data.get("is_admin", False)
 
-    # Check empty fields
     if not username or not email or not password:
         return jsonify({
             "success": False,
             "error": "All fields are required"
-        })
+        }), 400
 
-    # Check existing user
     existing_user = User.query.filter(
         (User.email == email) |
         (User.username == username)
@@ -945,7 +857,7 @@ def add_user():
         return jsonify({
             "success": False,
             "error": "User already exists"
-        })
+        }), 409
 
     new_user = User(
         username=username,
@@ -961,7 +873,7 @@ def add_user():
     return jsonify({
         "success": True,
         "message": "User added successfully"
-    })
+    }), 200
 
 
 @app.route("/retrain-model", methods=["POST"])

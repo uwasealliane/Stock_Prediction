@@ -120,8 +120,7 @@
                 <i class="fas fa-search"></i>
                 <input type="text" id="searchUserInput" placeholder="Search user by name or email...">
             </div>
-            <button class="btn-secondary" id="searchUserBtn">
-                <i class="fas fa-search"></i> Search
+          
             </button>
             <button class="btn-secondary" id="refreshUserBtn">
                 <i class="fas fa-sync-alt"></i> Refresh
@@ -405,6 +404,32 @@
     </div>
 </div>
         </div>
+
+ <!-- Dataset Management Component -->
+    <div class="dataset-management-container" id="datasetManagement">
+        <div class="dataset-management-title">
+            Available Datasets
+        </div>
+        
+        <!-- Currently Active Indicator -->
+        <div class="current-active-header" id="currentActiveHeader">
+            <span class="current-active-label">📌 Currently Active</span>
+            <span class="current-active-value" id="currentActiveValue">Loading...</span>
+        </div>
+        
+        <!-- Dataset List -->
+        <div class="dataset-list" id="datasetList">
+            <!-- Will be populated by JavaScript -->
+            <div style="text-align: center; padding: 20px; color: #999;">
+                Loading datasets...
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
+
 <!-- Improved Dataset Management Section - Single Clean Card -->
 <div class="section-card dataset-management-card"
      id="dataset-management">
@@ -431,28 +456,36 @@
                     <div class="stat-icon"><i class="fas fa-table-rows"></i></div>
                     <div class="stat-details">
                         <span class="stat-label">Rows</span>
-                        <span class="stat-number">1,250</span>
+                        <span class="stat-number">
+                            {{ dataset_rows }}
+                        </span>
                     </div>
                 </div>
                 <div class="dataset-stat">
                     <div class="stat-icon"><i class="fas fa-columns"></i></div>
                     <div class="stat-details">
                         <span class="stat-label">Columns</span>
-                        <span class="stat-number">6</span>
+                        <span class="stat-number">
+                            {{ dataset_columns }}
+                        </span>
                     </div>
                 </div>
                 <div class="dataset-stat">
                     <div class="stat-icon"><i class="fas fa-calendar"></i></div>
                     <div class="stat-details">
                         <span class="stat-label">Date Range</span>
-                        <span class="stat-number">2020-2025</span>
+                        <span class="stat-number">
+                            {{ date_range }}
+                        </span>
                     </div>
                 </div>
                 <div class="dataset-stat">
                     <div class="stat-icon"><i class="fas fa-clock"></i></div>
                     <div class="stat-details">
                         <span class="stat-label">Last Updated</span>
-                        <span class="stat-number">April 15, 2026</span>
+                        <span class="stat-number">
+                            {{ last_updated }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -521,6 +554,9 @@
         </div>
     </div>
 </div>
+
+
+
     <script>
         // Update time display
         function updateTime() {
@@ -836,7 +872,7 @@ function addNewUser() {
             username: username,
             email: email,
             password: password,
-            is_admin: role === 'admin'
+            is_admin: role.toLowerCase() === 'admin'
         })
     })
     .then(response => response.json())
@@ -1279,6 +1315,175 @@ document.addEventListener("DOMContentLoaded", function () {
         .addEventListener("click", addNewUser);
 
 });
+
+// dataset-management.js
+
+// Configuration - Update this to match your backend API
+const API_CONFIG = {
+    baseUrl: '/api',
+    endpoints: {
+        getDatasets: '/get-datasets',
+        setActive: '/set-active-dataset'
+    }
+};
+
+// Dataset data (in production, this would come from your backend)
+// For now, using mock data that matches your files
+let datasets = [
+    { filename: 'AAPL.csv', is_active: true, company: 'Apple Inc.' },
+    { filename: 'TSLA.csv', is_active: false, company: 'Tesla Inc.' },
+    { filename: 'MSFT.csv', is_active: false, company: 'Microsoft Corp.' },
+    { filename: 'NVDA.csv', is_active: false, company: 'NVIDIA Corp.' }
+];
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadDatasets();
+});
+
+// Load and display datasets
+function loadDatasets() {
+    const datasetList = document.getElementById('datasetList');
+    const currentActiveValue = document.getElementById('currentActiveValue');
+    
+    // Find active dataset
+    const activeDataset = datasets.find(ds => ds.is_active === true);
+    if (activeDataset) {
+        currentActiveValue.textContent = activeDataset.filename;
+    } else {
+        currentActiveValue.textContent = 'None';
+    }
+    
+    // Build dataset list HTML
+    let html = '';
+    
+    datasets.forEach(dataset => {
+        const isActive = dataset.is_active === true;
+        
+        html += `
+            <div class="dataset-item" data-filename="${dataset.filename}">
+                <div class="dataset-name">
+                    <span class="dataset-icon">📁</span>
+                    <span>${dataset.filename}</span>
+                    ${dataset.company ? `<span style="font-size: 11px; color: #999;">(${dataset.company})</span>` : ''}
+                </div>
+                <div>
+                    ${isActive ? 
+                        '<span class="active-badge">Active</span>' : 
+                        `<button class="set-active-btn" onclick="setActiveDataset('${dataset.filename}')">Set Active</button>`
+                    }
+                </div>
+            </div>
+        `;
+    });
+    
+    datasetList.innerHTML = html;
+}
+
+// Set active dataset function
+async function setActiveDataset(filename) {
+    // Find the button that was clicked
+    const button = event.target;
+    const originalText = button.textContent;
+    
+    // Show loading state
+    button.textContent = 'Switching...';
+    button.disabled = true;
+    
+    try {
+        // API call to your backend
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.setActive}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ filename: filename })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update local data
+            datasets.forEach(ds => {
+                ds.is_active = (ds.filename === filename);
+            });
+            
+            // Reload the UI
+            loadDatasets();
+            
+            // Show success message
+            showToast(`✓ Active dataset switched to ${filename}`, 'success');
+            
+            // Optional: Dispatch event that other parts of your app can listen to
+            window.dispatchEvent(new CustomEvent('datasetChanged', { 
+                detail: { activeDataset: filename } 
+            }));
+            
+        } else {
+            throw new Error(result.message || 'Failed to switch dataset');
+        }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        showToast(`❌ Failed to switch to ${filename}`, 'error');
+        
+        // Reset button
+        button.textContent = originalText;
+        button.disabled = false;
+    }
+}
+
+// Show toast notification
+function showToast(message, type = 'success') {
+    // Remove existing toast if any
+    const existingToast = document.querySelector('.dataset-toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // Create new toast
+    const toast = document.createElement('div');
+    toast.className = `dataset-toast ${type}`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Show toast
+    setTimeout(() => {
+        toast.classList.add('show');
+    }, 10);
+    
+    // Hide and remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 300);
+    }, 3000);
+}
+
+// Function to refresh datasets from server (call this after upload)
+async function refreshDatasets() {
+    try {
+        const response = await fetch(`${API_CONFIG.baseUrl}${API_CONFIG.endpoints.getDatasets}`);
+        const data = await response.json();
+        
+        if (data.datasets) {
+            datasets = data.datasets;
+            loadDatasets();
+            showToast('Datasets refreshed', 'success');
+        }
+    } catch (error) {
+        console.error('Error refreshing datasets:', error);
+        showToast('Failed to refresh datasets', 'error');
+    }
+}
+
+// Export functions for use in other files (if using modules)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { setActiveDataset, refreshDatasets, loadDatasets };
+}
+
 
     </script>
 </body>

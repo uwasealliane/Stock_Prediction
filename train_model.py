@@ -4,7 +4,11 @@ from preprocess import preprocess_data
 import pandas as pd
 
 # Load data
-data = pd.read_csv("data.csv")
+ACTIVE_DATASET = "AAPL.csv"
+
+data = pd.read_csv(
+    f"datasets/{ACTIVE_DATASET}"
+)
 
 # Preprocess
 X, y, scaler = preprocess_data(data)
