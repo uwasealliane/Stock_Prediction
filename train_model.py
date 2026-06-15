@@ -2,31 +2,78 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 from preprocess import preprocess_data
 import pandas as pd
+import os
 
-# Load data
-ACTIVE_DATASET = "AAPL.csv"
+# =========================
+# DATASETS TO TRAIN
+# =========================
 
-data = pd.read_csv(
-    f"datasets/{ACTIVE_DATASET}"
-)
+datasets = [
+    "AAPL.csv",
+    "TSLA.csv",
+    "MSFT.csv",
+    "NVDA.csv"
+]
 
-# Preprocess
-X, y, scaler = preprocess_data(data)
+# Create models folder if missing
+os.makedirs("models", exist_ok=True)
 
-# Build model
-model = Sequential()
+# =========================
+# TRAIN EACH DATASET
+# =========================
 
-model.add(LSTM(50, return_sequences=True, input_shape=(X.shape[1], X.shape[2])))
-model.add(LSTM(50))
-model.add(Dense(1))
+for dataset in datasets:
 
-# Compile
-model.compile(optimizer='adam', loss='mean_squared_error')
+    print(f"\nTraining {dataset} ...")
 
-# Train
-model.fit(X, y, epochs=5, batch_size=32)
+    data = pd.read_csv(
+        f"datasets/{dataset}"
+    )
 
-# Save
-model.save("model.h5")
+    X, y, scaler = preprocess_data(data)
 
-print("Model trained and saved successfully ✅")
+    model = Sequential()
+
+    model.add(
+        LSTM(
+            50,
+            return_sequences=True,
+            input_shape=(X.shape[1], X.shape[2])
+        )
+    )
+
+    model.add(
+        LSTM(50)
+    )
+
+    model.add(
+        Dense(1)
+    )
+
+    model.compile(
+        optimizer='adam',
+        loss='mean_squared_error'
+    )
+
+    model.fit(
+        X,
+        y,
+        epochs=5,
+        batch_size=32,
+        verbose=1
+    )
+
+    model_name = dataset.replace(
+        ".csv",
+        ".keras"
+    )
+
+    model.save(
+        f"models/{model_name}"
+    )
+
+    print(
+        f"{model_name} saved successfully ✅"
+    )
+
+print("\nALL MODELS TRAINED SUCCESSFULLY ✅")

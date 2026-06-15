@@ -172,7 +172,13 @@ class Dataset(db.Model):
 # LOAD DATASET
 # =========================
 
-ACTIVE_DATASET = "AAPL.csv"
+with app.app_context():
+
+    active_dataset = Dataset.query.filter_by(
+        is_active=True
+    ).first()
+
+    ACTIVE_DATASET = active_dataset.filename
 
 data = pd.read_csv(
     f"datasets/{ACTIVE_DATASET}"
@@ -203,7 +209,14 @@ y_test = y[split:]
 # =========================
 # LOAD MODEL
 # =========================
-model = load_model("model.h5")
+model_name = ACTIVE_DATASET.replace(
+    ".csv",
+    ".keras"
+)
+
+model = load_model(
+    f"models/{model_name}"
+)
 
 print("MODEL LOADED SUCCESSFULLY ✅")
 
@@ -342,21 +355,47 @@ def logout():
 # =========================
 @app.route("/", methods=["GET", "POST"])
 def index():
+
     global mae_global, rmse_global
 
     if 'username' not in session:
         return redirect(url_for("login"))
 
     error = None
-    confidence = 0.0  # Initialize confidence
+    confidence = 0.0
 
-    # USE LATEST DATE AUTOMATICALLY
+    # =========================
+    # GET ACTIVE DATASET FROM DB
+    # =========================
+    active_dataset = Dataset.query.filter_by(
+        is_active=True
+    ).first()
+
+    if not active_dataset:
+        return "No active dataset found"
+
+    ACTIVE_DATASET = active_dataset.filename
+
+    # =========================
+    # LOAD DATA
+    # =========================
+    data = pd.read_csv(
+        f"datasets/{ACTIVE_DATASET}"
+    )
+
+    data['Date'] = pd.to_datetime(data['Date'])
+
+    # =========================
+    # INITIAL VALUES
+    # =========================
     latest_row = data.iloc[-1]
     selected_dt = latest_row['Date']
     selected_date = selected_dt.strftime("%Y-%m-%d")
+
     actual_price = float(latest_row['Close'])
     predicted_price = 0.0
     next_date = (selected_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+
     trend = "WAITING"
     mae = 0.0
     rmse = 0.0
@@ -366,6 +405,8 @@ def index():
     chart_labels = []
     actual_chart = []
     predicted_chart = []
+
+    print("ACTIVE DATASET =", ACTIVE_DATASET)
 
     try:
         # MODEL EVALUATION (keep as is)
@@ -526,6 +567,7 @@ def index():
             print("MAE =", mae)
             print("RMSE =", rmse)
 
+          
     return render_template(
         "index.html",
         username=session.get("username"),
@@ -635,7 +677,13 @@ with app.app_context():
     if active_dataset:
         ACTIVE_DATASET = active_dataset.filename
     else:
-        ACTIVE_DATASET = "AAPL.csv"
+        with app.app_context():
+
+         active_dataset = Dataset.query.filter_by(
+        is_active=True
+    ).first()
+
+    ACTIVE_DATASET = active_dataset.filename
     # =========================
 # CREATE DEFAULT ADMIN
 # =========================
@@ -777,6 +825,12 @@ def admin_dashboard():
     print("MAE:", mae_global)
     print("RMSE:", rmse_global)
 
+    datasets = Dataset.query.all()
+
+    active_dataset = Dataset.query.filter_by(
+    is_active=True
+).first()
+
     return render_template(
     "admin.html",
 
@@ -795,11 +849,56 @@ def admin_dashboard():
     dataset_columns=dataset_columns,
     date_range=date_range,
     last_updated=last_updated,
-    datasets=datasets
+
+    datasets=datasets,
+    active_dataset=active_dataset.filename
 )
 
 
+@app.route('/set-active-dataset/<int:dataset_id>', methods=['POST'])
+def set_active_dataset(dataset_id):
 
+    try:
+
+        if not session.get("is_admin"):
+            return jsonify({
+                "success": False,
+                "error": "Not admin"
+            })
+
+        Dataset.query.update({
+            Dataset.is_active: False
+        })
+
+        dataset = db.session.get(
+            Dataset,
+            dataset_id
+        )
+
+        if dataset:
+
+            dataset.is_active = True
+
+            db.session.commit()
+
+            return jsonify({
+                "success": True,
+                "dataset": dataset.filename
+            })
+
+        return jsonify({
+            "success": False,
+            "error": "Dataset not found"
+        })
+
+    except Exception as e:
+
+        print("ERROR:", e)
+
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        })
 
 
 @app.route("/search-user")
@@ -1038,6 +1137,55 @@ def delete_user(user_id):
         "success": True,
         "message": "User deleted successfully"
     })
+
+
+def load_active_dataset():
+
+    global ACTIVE_DATASET
+    global data
+    global MIN_DATE
+    global MAX_DATE
+    global X
+    global y
+    global scaler
+    global X_train
+    global X_test
+    global y_train
+    global y_test
+
+    active = Dataset.query.filter_by(
+        is_active=True
+    ).first()
+
+    ACTIVE_DATASET = active.filename
+
+    data = pd.read_csv(
+        f"datasets/{ACTIVE_DATASET}"
+    )
+
+    data['Date'] = pd.to_datetime(
+        data['Date']
+    )
+
+    MIN_DATE = data['Date'].min().strftime("%Y-%m-%d")
+    MAX_DATE = data['Date'].max().strftime("%Y-%m-%d")
+
+    X, y, scaler = preprocess_data(data)
+
+    split = int(len(X) * 0.8)
+
+    X_train = X[:split]
+    X_test = X[split:]
+
+    y_train = y[:split]
+    y_test = y[split:]
+
+    print(
+        f"ACTIVE DATASET CHANGED TO {ACTIVE_DATASET}"
+    )
+
+
+print(app.url_map)
 
 # =========================
 # RUN APP
